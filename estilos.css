@@ -1,0 +1,164 @@
+/* Estilos generales */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    line-height: 1.6;
+    background-color: #f8f8f8;
+    color: #333;
+}
+
+/* Encabezado */
+header {
+    background-color: #fff;
+    padding: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo h1 {
+    margin: 0;
+    color: #007bff;
+}
+
+/* Navegación */
+nav {
+    display: flex;
+    justify-content: flex-end; /* Alinea los elementos a la derecha */
+    align-items: center;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+nav li {
+    margin-left: 20px;
+}
+
+nav a {
+    text-decoration: none;
+    color: #333;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+nav a:hover {
+    color: #007bff;
+}
+
+/* Botón de hamburguesa */
+.menu-toggle {
+    display: none; /* Oculto por defecto */
+    background: none;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.menu-toggle .bar {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: #333;
+    margin: 5px auto;
+}
+
+/* Contenido principal */
+main {
+    padding: 40px;
+}
+
+/* Sección de productos */
+#productos {
+    text-align: center;
+    padding: 20px;
+}
+
+/* Contenedor de productos */
+.product-container {
+    width: 80%;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.product {
+    width: 30%;
+    margin: 10px;
+    text-align: center;
+}
+
+.product img {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.product h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.product p {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.product button {
+    background-color: #007bff;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.product button:hover {
+    background-color: #0056b3;
+}
+
+/* Pie de página */
+footer {
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+}
+
+/* Estilos para pantallas pequeñas */
+@media (max-width: 768px) {
+    nav ul {
+        display: none; /* Oculta el menú en pantallas pequeñas */
+        flex-direction: column; /* Muestra los elementos del menú verticalmente */
+        position: absolute;
+        top: 60px; /* Ajusta la posición del menú */
+        left: 0;
+        width: 100%;
+        background-color: #fff; /* Color de fondo del menú */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Sombra para el menú */
+    }
+
+    nav li {
+        margin: 10px 0; /* Espacio entre los elementos del menú */
+        text-align: center; /* Centra el texto del menú */
+    }
+
+    .menu-toggle {
+        display: block; /* Muestra el botón de hamburguesa */
+    }
+
+    nav ul.active {
+        display: flex; /* Muestra el menú cuando se hace clic en el botón de hamburguesa */
+    }
+
+    .product {
+        width: 45%; /* Ajusta el ancho de los productos en pantallas pequeñas */
+    }
+}
