@@ -71,8 +71,11 @@ try {
     <?php endif; ?>
 
     <p><strong>Fecha del Pedido:</strong> <?php echo htmlspecialchars($pedido['fecha']); ?></p>
-    <p><strong>Cliente:</strong> <?php echo htmlspecialchars($pedido['usuario_nombre']); ?></p>
-    <p><strong>Total del Pedido:</strong> $<?php echo htmlspecialchars($pedido['total']); ?></p>
+    <p><strong>Cliente:</strong> <?php echo htmlspecialchars(strtoupper($pedido['usuario_nombre'])); ?></p>
+    <p><strong>Total del Pedido:</strong><?php echo htmlspecialchars($pedido['total']); ?></p>
+    <p><strong>Referencia Pago Móvil: &nbsp;<span style="font-size: 1.5em; color: red;">
+        <?php echo htmlspecialchars($pedido['referencia_pago']);?>
+    </span></strong></p>
 
     <h2>Estado del Pedido</h2>
     <form action="procesar_estado_pedido.php" method="POST">

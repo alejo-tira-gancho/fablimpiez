@@ -16,6 +16,9 @@ if (ini_get("session.use_cookies")) {
 
 // Finalmente, destruye la sesión
 session_destroy();
+session_start();
+session_unset(); // Borra las variables
+session_destroy(); // Destruye la sesión
 
 // Redirige al usuario a la página de inicio de sesión o a la página principal
 header("Location: limpieza.php"); // Puedes cambiar esto a "limpieza.php" o a una página de inicio

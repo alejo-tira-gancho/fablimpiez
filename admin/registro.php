@@ -1,8 +1,6 @@
 <?php
 session_start(); // Inicia la sesión para mensajes de error/éxito
-
-require_once 'conexion.php'; // Asegúrate de que esta ruta sea correcta para tu función connectToDb()
-
+require '../conexion.php';  // Asegúrate de que esta ruta sea correcta para tu función connectToDb()
 $error_message = '';
 $success_message = '';
 

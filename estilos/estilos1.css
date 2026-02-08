@@ -128,31 +128,31 @@ main {
 /*Tooltip text*/
 
 .tooltip {
-  position: relative;
-  display: inline-block;
-  border-bottom: 1px dotted black;
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
 }
 
 .tooltip .tooltiptext {
-  visibility: hidden;
-  width: 120px;
-  background-color: black;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 5px 0;
-  position: absolute;
-  z-index: 1;
-  bottom: 125%;
-  left: 50%;
-  margin-left: -60px;
-  opacity: 0;
-  transition: opacity 0.3s;
+    visibility: hidden;
+    width: 120px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -60px;
+    opacity: 0;
+    transition: opacity 0.3s;
 }
 
 .tooltip:hover .tooltiptext {
-  visibility: visible;
-  opacity: 1;
+    visibility: visible;
+    opacity: 1;
 }
 
 /* Sección de productos */
@@ -332,53 +332,164 @@ footer {
 }
 
 .siderbar {
-    width: fit-content;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    /* Centrado del div.siderbar en la página */
+    width: fit-content;    /* El ancho se ajusta al contenido. También puedes usar un ancho fijo como 300px; */
+    margin: 0 auto;        /* ¡Esto lo centra horizontalmente! */
+
+    /* Configuración Flexbox para alinear el h2 y el ul DENTRO del siderbar */
+    display: flex;           /* Hacemos que el .siderbar sea un contenedor flex */
+    flex-direction: column; /* Apilamos el h2 y el ul verticalmente */
+    align-items: center;    /* Centramos el h2 y el ul horizontalmente dentro del .siderbar */
+
+    /* Estilos visuales opcionales para el .siderbar */
     padding: 15px;
+    /*background-color: #f0f0f0; /* Color de fondo para el sidebar */
     border-radius: 10px;
     box-shadow: 0 10px 12px rgba(0,0,0,0.1);
 }
 
 .siderbar h2 {
-    margin-bottom: 15px;
+    margin-bottom: 15px; /* Espacio debajo del título */
     color: #333;
 }
 
 .siderbar ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    background-color: lightblue;
+    list-style: none; /* Elimina los puntos de la lista */
+    padding: 0;        /* Elimina el relleno predeterminado */
+    margin: 0;         /* Elimina el margen predeterminado */
+
+    display: flex;           /* Activa el modelo de caja flexible para los iconos */
+    flex-direction: row;     /* Alinea los iconos en fila (horizontal) */
+    align-items: center;     /* Centra verticalmente los iconos si tuvieran diferentes alturas */
+    background-color: lightblue; /* El color de fondo para la fila de iconos */
 }
 
 .siderbar ul li {
-    margin-right: 10px;
+    margin-right: 10px; /* Espacio entre los iconos */
 }
 
 .siderbar ul li:last-child {
-    margin-right: 0;
+    margin-right: 0; /* Elimina el margen derecho del último icono */
 }
 
-/* Estilos para el formulario de búsqueda */
-.search-form {
+
+.sociales li{
+    display: inline-block;
+}
+
+.sociales a{
+    padding: 10px;
+}
+
+
+/******************************/
+
+
+.icon {
+    color: white;
+    text-decoration: none;
+    padding: .7rem;
+    display: flex;
+    transition: all .5s;
+}
+
+.icon-facebook {
+    background: #2E406E;
+}
+
+.icon-twitter {
+    background: #339DC5;
+}
+
+.icon-youtube {
+    background: #E83028;
+}
+
+.icon-instagram {
+    background: #3F60A5;
+}
+
+.icon:first-child {
+    border-radius: 1rem 0 0 0;
+}
+
+.icon:last-child {
+    border-radius: 0 0 0 1rem;
+}
+
+.icon:hover {
+    padding-right: 3rem;
+    border-radius: 1rem 0 0 1rem;
+    box-shadow: 0 0 .5rem rgba(0, 0, 0, 0.42);
+}
+
+
+/*****************************/
+/*.icon-facebook { background: #2E406E; }
+.icon-twitter { background: #339DC5; }
+.icon-youtube { background: #E83028; }
+.icon-instagram { background: #3F60A5; }
+
+.icon:first-child { border-radius: 1rem 0 0 0; }
+.icon:last-child { border-radius: 0 0 0 1rem; }
+
+.icon:hover {
+    padding-right: 3rem;
+    border-radius: 1rem 0 0 1rem;
+    box-shadow: 0 0 .5rem rgba(0, 0, 0, 0.42);
+}
+
+
+.icon {
+    display: block; 
+    width: 40px; 
+    height: 40px;
+    line-height: 40px; 
+    text-align: center;
+    color: #fff;
+    background-size: 60%;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 4px;
+    padding-right: 0; 
+    transition: all 0.3s ease;
+}*/
+
+/*.search-form {
     display: flex;
     margin-left: 20px;
-}
+    width: fit-content; 
+    margin-right: auto;
+    margin-left: auto;
+}*/
+
+
+.search-form {
+        margin-left: auto; /* Centrar */
+        margin-right: auto; /* Centrar */
+        margin-top: 10px;
+        width: 90%; /* Ajuste de ancho para móviles */
+        justify-content: center;
+        padding: 0; /* Quita el padding para que no se sume al ancho */
+    }
+
 
 .search-form input[type="text"] {
-    padding: 8px;
+    /* El padding izquierdo es clave para dejar espacio al icono */
+    padding: 8px; /* Padding base */
+    padding-left: 35px; /* Ajuste para la lupa */
     border: 1px solid #ccc;
     border-radius: 5px 0 0 5px;
     font-size: 1em;
+    /* Implementación de la Lupa con SVG */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="gray" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: 8px center; /* Posiciona el icono a 8px desde la izquierda */
+    background-size: 20px 20px; /* Tamaño del icono */
 }
 
 .search-form button[type="submit"] {
+    /* Estilos para el botón de Búsqueda */
     background-color: #007bff;
     color: white;
     border: none;
@@ -393,28 +504,6 @@ footer {
     background-color: #0056b3;
 }
 
-.icon {
-    color: white;
-    text-decoration: none;
-    padding: .7rem;
-    display: flex;
-    transition: all .5s;
-}
-
-.icon-facebook { background: #2E406E; }
-.icon-twitter { background: #339DC5; }
-.icon-youtube { background: #E83028; }
-.icon-instagram { background: #3F60A5; }
-
-.icon:first-child { border-radius: 1rem 0 0 0; }
-.icon:last-child { border-radius: 0 0 0 1rem; }
-
-/* Efecto hover (solo se verá en escritorio) */
-.icon:hover {
-    padding-right: 3rem;
-    border-radius: 1rem 0 0 1rem;
-    box-shadow: 0 0 .5rem rgba(0, 0, 0, 0.42);
-}
 
 
 /* === INICIO: MEDIA QUERY PARA MÓVILES (max-width: 768px) === */
@@ -461,22 +550,41 @@ footer {
         box-shadow: none;
     }
     
-    /* Formulario de búsqueda en móviles */
-    .search-form {
-        margin-left: 0; 
+    /* Formulario de búsqueda en móviles (Ajustado) */
+/*    .search-form {
+        margin-left: auto; 
+        margin-right: auto;
         margin-top: 10px;
-        width: 100%;
+        width: 90%;
         justify-content: center;
-        padding: 0 10px; /* Asegura un poco de espacio en los bordes */
+        padding: 0; 
     }
+*//*    .search-form {
+        display:flex;
+        margin-left: 20px;
+        width:fit-content;
+    }*/
+/* Estilos para el formulario de búsqueda (Alineado a la izquierda para escritorio) */
+.search-form {
+    display: flex;
+    margin-left: 20px;
+    max-width: 900px; /* Limita el ancho del formulario, si es necesario */
+    padding: 0 20px; /* Usa el padding para el espaciado izquierdo/derecho */
+    margin: 0; /* Elimina cualquier margen residual */
+    justify-content: flex-start; /* Fuerza la alineación de sus contenidos a la izquierda */
+}
+
+
 
     .search-form input[type="text"] {
         flex-grow: 1;
-        max-width: 60%;
+        max-width: 70%; /* Le da más espacio al input */
         border-radius: 5px 0 0 5px;
+        padding-left: 35px; /* Mantiene la lupa */
     }
 
     .search-form button[type="submit"] {
+        padding: 8px 12px; /* Se ajusta al padding del input */
         border-radius: 0 5px 5px 0;
         margin-left: 0; 
     }

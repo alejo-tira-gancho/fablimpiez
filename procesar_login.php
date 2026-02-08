@@ -1,11 +1,8 @@
 <?php
 session_start(); // ¡Importante! Siempre al inicio del script
-
 require 'conexion.php'; // Asegúrate de que la ruta sea correcta para tu función connectToDb()
-
 // Verificar si la solicitud es POST
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-
     // Obtener y sanear las entradas del usuario
     $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
     $password = $_POST['password']; // La contraseña se verificará con password_verify
@@ -27,21 +24,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt = $pdo->prepare("SELECT id, nombre, email, password FROM usuarios WHERE email = :email");
         $stmt->execute([':email' => $email]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-
         // Verifica si se encontró el usuario y si la contraseña es correcta
+if ($usuario && password_verify($password, $usuario['password'])) {
+    $_SESSION['usuario_id'] = $usuario['id'];
+    $_SESSION['usuario_nombre'] = $usuario['nombre'];
+    $_SESSION['usuario_email'] = $usuario['email'];
 
-        if ($usuario && password_verify($password, $usuario['password'])) {
-            // ¡Credenciales correctas!  
-            // Guardar la información del usuario en la sesión
-            $_SESSION['usuario_id'] = $usuario['id']; // Guarda el ID del usuario
-            $_SESSION['usuario_nombre'] = $usuario['nombre']; // Opcional, guarda el nombre
-            $_SESSION['usuario_email'] = $usuario['email'];   // Opcional, guarda el email
-
-            // Redirigir al usuario a una página de bienvenida o a la página de productos
-
-            header("Location: limpieza.php"); // Por ejemplo, a tu página principal
-            exit();
-        } else {
+    // 🔄 CAMBIO: Añade esta línea antes del header
+    session_write_close(); 
+    
+    header("Location: limpieza.php");
+    exit();
+} else {
             // Credenciales incorrectas
             $_SESSION['error_login'] = "Correo electrónico o contraseña incorrectos.";
             header("Location: login.php");

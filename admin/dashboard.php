@@ -2,7 +2,6 @@
 // Incluye tu archivo de conexión a la base de datos
 require '../conexion.php';
 $pdo = connectToDb(); // This function call returns the PDO object
-
 // Lógica para obtener los pedidos y el nombre del usuario
 try {
     $sql = "
