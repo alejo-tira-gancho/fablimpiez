@@ -1,37 +1,38 @@
 <?php
-// 1. Limpiar cualquier salida previa (evita espacios accidentales)
-ob_clean();
-
 require 'conexion.php';
 $conexion = connectToDb();
 
 if (isset($_GET['id'])) {
-    $id = intval($_GET['id']);
-    
-    // Usamos vproductos o productos, asegúrate que el nombre de la tabla sea correcto
-    $stmt = $conexion->prepare("SELECT imagen, mime_type FROM vproductos WHERE id = :id");
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmt->execute();
-    $producto = $stmt->fetch(PDO::FETCH_ASSOC);
+    $id = (int)$_GET['id'];
 
-    if ($producto && !empty($producto['imagen'])) {
-        $imagen = $producto['imagen'];
-        
-        // Si PostgreSQL devuelve un recurso de flujo (stream)
-        if (is_resource($imagen)) {
-            $imagen = stream_get_contents($imagen);
+    try {
+        $stmt = $conexion->prepare("SELECT imagen, mime_type FROM vproductos WHERE id = :id");
+        $stmt->execute(['id' => $id]);
+        $producto = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($producto) {
+            $imagen = $producto['imagen'];
+            $mime = $producto['mime_type'];
+
+            // Si el campo es un recurso (LOB en algunos drivers), lo leemos
+            if (is_resource($imagen)) {
+                $imagen = stream_get_contents($imagen);
+            }
+
+            // --- OPTIMIZACIÓN DE CACHÉ ---
+            // Le decimos al navegador que guarde la imagen por 1 semana
+            header("Cache-Control: max-age=604800");
+            header("Content-Type: " . $mime);
+            header("Content-Length: " . strlen($imagen));
+
+            echo $imagen;
+            exit;
         }
-
-        // 2. Enviar cabeceras correctas
-        header("Content-Type: " . $producto['mime_type']);
-        header("Content-Length: " . strlen($imagen)); // Ayuda al navegador a saber cuánto esperar
-        
-        echo $imagen;
-        exit;
+    } catch (PDOException $e) {
+        error_log("Error cargando imagen: " . $e->getMessage());
     }
 }
 
-// 3. Si falla, enviar una imagen transparente mínima de 1x1 o una por defecto
+// Si algo falla, cargamos una imagen por defecto (opcional)
 header("Content-Type: image/png");
-echo base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
-exit;
+echo file_get_contents('imagenes/no-disponible.png');

@@ -1,57 +1,97 @@
 <?php
-session_start(); // ¡Importante! Siempre al inicio del script
-require 'conexion.php'; // Asegúrate de que la ruta sea correcta para tu función connectToDb()
-// Verificar si la solicitud es POST
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Obtener y sanear las entradas del usuario
-    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-    $password = $_POST['password']; // La contraseña se verificará con password_verify
-    if (empty($email) || empty($password)) {
-        $_SESSION['error_login'] = "Por favor, introduce tu correo y contraseña.";
-        header("Location: login.php");
-        exit();
-    }
-    $pdo = connectToDb(); // Intenta conectar a la base de datos
-    if (!$pdo) {
-        // Si no se puede conectar a la DB, redirige con un error general
-        $_SESSION['error_login'] = "Error interno del servidor. Inténtalo de nuevo más tarde.";
-        header("Location: login.php");
-        exit();
-    }
+session_start();
+require 'conexion.php';
+
+/**
+ * RUTINA DE VERIFICACIÓN DE EXPIRACIÓN (30 DÍAS)
+ */
+function verificarPeriodoUso($pdo) {
     try {
-        // Prepara la consulta para obtener el usuario por email
-        // Asegúrate de que tu tabla se llama 'usuarios' y tiene columnas 'email', 'password' y 'id'
+        $stmt = $pdo->query("SELECT fecha_instalacion, bloqueado FROM sistema_control LIMIT 1");
+        $control = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$control) {
+            $hoy = date('Y-m-d');
+            $stmt = $pdo->prepare("INSERT INTO sistema_control (fecha_instalacion) VALUES (:hoy)");
+            $stmt->execute([':hoy' => $hoy]);
+            return true; 
+        }
+        if ($control['bloqueado'] == 1) {
+            return false;
+        }
+
+        $fechaInicio = new DateTime($control['fecha_instalacion']);
+        $fechaHoy = new DateTime();
+        $diferencia = $fechaInicio->diff($fechaHoy);
+        $diasTranscurridos = $diferencia->days;
+
+        if ($diasTranscurridos > 30) {
+            $pdo->query("UPDATE sistema_control SET bloqueado = 1 WHERE id = 1");
+            return false;
+        }
+
+        return true; 
+
+    } catch (PDOException $e) {
+        error_log("Error en control de acceso: " . $e->getMessage());
+        return true; 
+    }
+}
+
+// --- INICIO DEL PROCESO DE LOGIN ---
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+    $password = $_POST['password'] ?? '';
+
+    if (empty($email) || empty($password)) {
+        $_SESSION['error_login'] = "Campos obligatorios vacíos.";
+        header("Location: login.php");
+        exit();
+    }
+
+    $pdo = connectToDb();
+
+    try {
         $stmt = $pdo->prepare("SELECT id, nombre, email, password FROM usuarios WHERE email = :email");
         $stmt->execute([':email' => $email]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-        // Verifica si se encontró el usuario y si la contraseña es correcta
-if ($usuario && password_verify($password, $usuario['password'])) {
-    $_SESSION['usuario_id'] = $usuario['id'];
-    $_SESSION['usuario_nombre'] = $usuario['nombre'];
-    $_SESSION['usuario_email'] = $usuario['email'];
 
-    // 🔄 CAMBIO: Añade esta línea antes del header
-    session_write_close(); 
-    
-    header("Location: limpieza.php");
-    exit();
-} else {
-            // Credenciales incorrectas
-            $_SESSION['error_login'] = "Correo electrónico o contraseña incorrectos.";
+        // VERIFICACIÓN DE CONTRASEÑA
+        if ($usuario && password_verify($password, $usuario['password'])) {
+            
+            // ============================================================
+            // >>> AQUÍ ESTÁ EL CAMBIO: RUTINA DE BLOQUEO CON ENLACE <<<
+            // ============================================================
+            if (!verificarPeriodoUso($pdo)) {
+                $_SESSION['error_login'] = "🛑 Su licencia ha expirado. <a href='activar.php' style='color:yellow; font-weight:bold;'>Haga clic aquí para activar</a>.";
+                header("Location: login.php");
+                exit();
+            }
+            // ============================================================
+
+            // LOGIN EXITOSO
+            session_regenerate_id(true);
+            $_SESSION['usuario_id'] = $usuario['id'];
+            $_SESSION['usuario_nombre'] = $usuario['nombre'];
+            $_SESSION['usuario_email'] = $usuario['email'];
+            
+            session_write_close();
+            header("Location: limpieza.php");
+            exit();
+
+        } else {
+            $_SESSION['error_login'] = "Usuario o contraseña incorrectos.";
             header("Location: login.php");
             exit();
         }
 
     } catch (PDOException $e) {
-        // Manejar errores de la base de datos durante el login
-        error_log("Error de login en DB: " . $e->getMessage());
-        $_SESSION['error_login'] = "Ha ocurrido un error al intentar iniciar sesión. Por favor, inténtalo de nuevo.";
+        error_log("Error: " . $e->getMessage());
+        $_SESSION['error_login'] = "Error interno del sistema.";
         header("Location: login.php");
         exit();
     }
 } else {
-    // Si alguien intenta acceder a procesar_login.php directamente sin POST
     header("Location: login.php");
     exit();
 }
-?>

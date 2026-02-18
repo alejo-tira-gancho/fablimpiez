@@ -27,20 +27,25 @@ session_start(); // Siempre inicia la sesión al principio
 <div class="login-container">
     <h1>Iniciar Sesión</h1>
 
-    <?php
-    // 🔄 CAMBIO: Reemplaza tu bloque de errores por este unificado
-    $error = $_SESSION['error_login'] ?? $_SESSION['error_mensaje'] ?? null;
-    
-    if ($error) {
-        echo '<div class="error-message">' . htmlspecialchars($error) . '</div>';
-        unset($_SESSION['error_login'], $_SESSION['error_mensaje']);
-    }
+<?php
+// 🔄 CAMBIO: Ahora permitimos HTML solo si el error viene de la licencia
+$error = $_SESSION['error_login'] ?? $_SESSION['error_mensaje'] ?? null;
 
-    if (isset($_SESSION['mensaje_registro'])) {
-        echo '<div class="success-message">' . htmlspecialchars($_SESSION['mensaje_registro']) . '</div>';
-        unset($_SESSION['mensaje_registro']);
+if ($error) {
+    // Si el mensaje contiene la palabra 'activar', lo imprimimos sin htmlspecialchars
+    if (strpos($error, 'activar.php') !== false) {
+        echo '<div class="error-message">' . $error . '</div>';
+    } else {
+echo '<div class="error-message">' . mb_strtoupper(htmlspecialchars($error), 'UTF-8') . '</div>';
     }
-    ?>
+    unset($_SESSION['error_login'], $_SESSION['error_mensaje']);
+}
+
+if (isset($_SESSION['mensaje_registro'])) {
+    echo '<div class="success-message">' . htmlspecialchars($_SESSION['mensaje_registro']) . '</div>';
+    unset($_SESSION['mensaje_registro']);
+}
+?>
 
         <form action="procesar_login.php" method="POST">
             <div class="form-group">

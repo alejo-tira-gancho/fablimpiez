@@ -1,4 +1,6 @@
 <?php
+//include 'verificar_sesion.php';
+include __DIR__ . '/verifcar_sesion.php';
 ini_set('display_errors', 0); // No mostrar errores en producción
 error_reporting(E_ALL); // Seguir reportando todos los errores internamente
 session_start(); // ¡Solo esta llamada a session_start()!
@@ -79,7 +81,7 @@ if (isset($mensaje_sesion) && !empty($mensaje_sesion)) {
     <link rel="stylesheet" href="fonts.css">
     <link rel="stylesheet" href="estilos/estilos1.css">
 
-<!--     <style>
+<style>
 /* =================================================== */
 /* === INICIO: BLOQUE DE ESTILOS CORREGIDO Y COMPLETO === */
 /* =================================================== */
@@ -249,13 +251,13 @@ main {
 
 /* Contenedor de la cuadrícula de productos */
 .products-grid {
-    /* Regla para escritorio/tablet (fuerza un min de 250px) */
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-    gap: 20px;
-    max-width: 900px;
+    /* Bajamos el mínimo a 200px para que entren más por fila */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 15px; /* Reducimos un poco el espacio entre tarjetas para ganar lugar */
+    max-width: 1200px; /* Ampliamos el ancho máximo permitido del contenedor */
     margin: 0 auto;
-    padding: 0 10px;
+    padding: 10px;
 }
 
 /* Estilos para cada producto en la cuadrícula */
@@ -263,20 +265,43 @@ main {
     background-color: greenyellow;
     border: 1px solid #ccc;
     border-radius: 8px;
-    padding: 15px;
+    padding: 10px; /* Reducción de padding interno */
     text-align: center;
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    font-size: 0.9rem; /* Texto ligeramente más pequeño para ahorrar espacio */
+transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                box-shadow 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+
+}
+/* 2. El efecto Zoom cuando pasas el ratón (Hover) */
+.products-grid .product:hover {
+    transform: scale(1.05); /* Zoom del 5% */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2); /* Sombra más profunda */
+    z-index: 10; /* Se asegura de estar por encima de las otras */
+    background-color: #f1ffcc; /* Un ligero cambio de tono opcional */
 }
 
+/* 3. Animación para la imagen dentro de la tarjeta */
+.products-grid .product:hover img {
+    transform: scale(1.1); /* La imagen crece un poquito más que la tarjeta */
+}
+
+/*.products-grid .product img {
+    transition: transform 0.5s ease;
+}
+*/
+/* Asegurar que las imágenes no deformen la tarjeta */
 .products-grid .product img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 0 auto 10px auto;
-    border-radius: 5px;
+    width: 100%;
+    height: 140px; /* Altura fija para uniformidad */
+    object-fit: contain;
+    margin-bottom: 5px;
+    transition: transform 0.5s ease;
 }
 
 .products-grid .product h3 {
@@ -671,16 +696,135 @@ footer {
         margin-left: 0; 
     }
 }
+
+/* === ===*/
+/* === MAQUILLAJE DE LA SECCIÓN DE BÚSQUEDA === */
+.search-container {
+    background-color: #ffffff;
+    padding: 30px 20px;
+    margin: 20px auto;
+    max-width: 700px;
+    border-radius: 50px; /* Forma de píldora moderna */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.search-form-ajax {
+    display: flex;
+    align-items: center;
+    gap: 0; /* Unimos el input y el botón */
+}
+
+.input-group {
+    flex-grow: 1;
+    position: relative;
+}
+
+#buscador {
+    width: 100%;
+    padding: 12px 20px 12px 45px; /* Espacio para el icono de lupa */
+    font-size: 1rem;
+    border: 2px solid #e0e0e0;
+    border-right: none; /* Quitamos el borde derecho para unir al botón */
+    border-radius: 30px 0 0 30px; /* Redondeado solo a la izquierda */
+    outline: none;
+    transition: border-color 0.3s ease;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+    background-repeat: no-repeat;
+    background-position: 15px center;
+}
+
+#buscador:focus {
+    border-color: #007bff;
+}
+
+.btn-search {
+    background-color: #007bff;
+    color: white;
+    border: 2px solid #007bff;
+    padding: 12px 25px;
+    font-weight: bold;
+    border-radius: 0 30px 30px 0; /* Redondeado solo a la derecha */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.btn-search:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+/* Sugerencias estilo flotante */
+.sugerencias-box {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+}
+/* Estilo para las sugerencias con imágenes */
+.sugerencia-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.sugerencia-item:hover {
+    background-color: #f0f7ff;
+}
+/* Ajuste móvil */
+@media (max-width: 480px) {
+    .search-container {
+        border-radius: 15px;
+        padding: 15px;
+    }
+    #buscador {
+        padding-left: 35px;
+        font-size: 0.9rem;
+    }
+    .btn-search {
+        padding: 12px 15px;
+        font-size: 0.9rem;
+    }
+}
+
+/* AGREGAR ESTA CLASE PARA EL TÍTULO */
+.titulo-tienda {
+    font-weight: bold; 
+    font-size: 1.2rem;
+    transition: opacity 0.3s ease; /* Para una transición suave */
+}
+
+/* MODIFICACIÓN EN LA MEDIA QUERY EXISTENTE (al final de tu bloque <style>) */
+@media (max-width: 768px) {
+    /* ... otros estilos responsivos que ya tenías ... */
+
+    .titulo-tienda {
+        opacity: 0;           /* Lo hace transparente */
+        pointer-events: none; /* Evita que se pueda hacer clic si estorba */
+        /* Si prefieres que desaparezca del todo para ganar espacio, usa: display: none; */
+    }
+}
+/* === ===*/
+
 /* === FIN: MEDIA QUERY === */
 
 /* =================================================== */
 /* === FIN: BLOQUE DE ESTILOS CORREGIDO Y COMPLETO === */
 /* =================================================== */
-</style> -->
+</style>
 </head>
     <header>
         <div class="logo">
-            <!-- <img src="imagenes/klins.jpg" alt="Logo de Klins"> -->
+            <img src="imagenes/klins.jpg" alt="Logo de Klins">
         </div>
         <nav>
             <button class="menu-toggle">
@@ -714,23 +858,24 @@ if (isset($error_sesion) && !empty($error_sesion)) {
 }
 ?>  
 <body>
-    <nav style="background-color: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
-    <div style="font-weight: bold; font-size: 1.2rem;">
-        🧼 Mi Tienda de Limpieza
-    </div>
-    
-      <div>
-        <?php if (isset($_SESSION['usuario_id'])): ?>
-            <span style="margin-right: 15px;">
-                👋 Bienvenido, <strong><?php echo htmlspecialchars($_SESSION['usuario_nombre']); ?></strong>
-            </span>
-            <a href="carrito.php" style="color: #ffc107; text-decoration: none; margin-right: 15px;">🛒 Mi Carrito</a>
-            <a href="logout.php" style="background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 0.9rem;">Cerrar Sesión</a>
-        <?php else: ?>
-            <span>Invitado</span>
-            <a href="login.php" style="background-color: #007bff; color: white; padding: 5px 15px; border-radius: 4px; text-decoration: none; margin-left: 10px;">Iniciar Sesión</a>
-        <?php endif; ?>
-      </div>
+<nav style="background-color: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
+        
+        <div class="titulo-tienda">
+            🧼 Mi Tienda de Limpieza
+        </div>
+        
+        <div>
+            <?php if (isset($_SESSION['usuario_id'])): ?>
+                <span style="margin-right: 15px;" class="user-welcome">
+                    👋 Bienvenido, <strong><?php echo htmlspecialchars($_SESSION['usuario_nombre']); ?></strong>
+                </span>
+                <a href="carrito.php" style="color: #ffc107; text-decoration: none; margin-right: 15px;">🛒 Mi Carrito</a>
+                <a href="logout.php" style="background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 0.9rem;">Cerrar Sesión</a>
+            <?php else: ?>
+                <span>Invitado</span>
+                <a href="login.php" style="background-color: #007bff; color: white; padding: 5px 15px; border-radius: 4px; text-decoration: none; margin-left: 10px;">Iniciar Sesión</a>
+            <?php endif; ?>
+        </div>
     </nav>
 
 <div style="max-width: 800px; margin: 20px auto; text-align: center;">
@@ -747,12 +892,20 @@ if (isset($error_sesion) && !empty($error_sesion)) {
 </div>
 
 <main>
-<form action="buscar_producto.php" method="post" class="search-form">
-    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-    
-    <input type="text" name="q" placeholder="Buscar producto...">
-    <button type="submit">Buscar</button>
-</form>
+<div class="search-container">
+    <form action="buscar_producto.php" method="post" class="search-form-ajax">
+        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+        
+        <div class="input-group">
+            <input type="text" name="q" id="buscador" autocomplete="off" placeholder="¿Qué producto buscas hoy?">
+            <div id="lista-sugerencias" class="sugerencias-box"></div>
+        </div>
+        
+        <button type="submit" class="btn-search">
+            <i class="fas fa-search"></i> Buscar
+        </button>
+    </form>
+</div>
 
 
 <section id="ubicacion-tienda">
@@ -762,73 +915,50 @@ if (isset($error_sesion) && !empty($error_sesion)) {
     </div>
 </section>
 <section id="productos">
-    <h2>Nuestros Productos</h2>
+    <h2 style="text-align: center; margin: 20px 0;">Nuestros Productos</h2>
     <div class="products-grid">
-        <?php
-        if (!empty($productos)){
-            foreach ($productos as $producto){
-               $imagenBinaria = $producto['imagen'];
-               $mimeType = $producto['mime_type'];
-                 if (is_resource($imagenBinaria)) {
-                     $imagenBinaria = stream_get_contents($imagenBinaria);
-                 }
-                     $imageData = base64_encode($imagenBinaria);
-                     $imageUrl = "data:$mimeType;base64,$imageData";                      
-                 ?>
-                 <div class="product">
-                     <form action="procesar_carrito1.php" method="post">
-                      <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">                        
-                       <p style="font-size: 0.9em; margin-bottom: 5px; color: #555;">Agregue el producto al carrito</p>
-                       <input type="hidden" name="id" value="<?php echo htmlspecialchars($producto['id']); ?>">                        
-                     <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="<?php echo htmlspecialchars($producto['producto_nombre']); ?>" style="max-width: 200px;" loading="lazy" width="150" height="150">
-                     <h3><?php echo htmlspecialchars($producto['producto_nombre']); ?></h3>
-                     <p class="product-description"><?php echo htmlspecialchars($producto['producto_descripcion']); ?></p>
-                     <p><?php echo htmlspecialchars($producto['categoria_nombre']); ?></p>
-                     <p>Precio: $<?php echo htmlspecialchars(number_format($producto['precio'], 2)); ?></p>
-                     <div class="quantity-control">
-                         <button type="button" class="quantity-btn minus-btn" data-product-id="<?php echo htmlspecialchars($producto['id']); ?>">-</button>
-                         <input type="number"
-                                name="cantidad"
-                                id="cantidad_<?php echo htmlspecialchars($producto['id']); ?>"
-                                value="1"
-                                min="1"
-                                class="quantity-input">
-                         <button type="button" class="quantity-btn plus-btn" data-product-id="<?php echo htmlspecialchars($producto['id']); ?>">+</button>
-                         <?php
-                              if(isset($producto['id_estado']) && $producto['id_estado'] == 1){
-                             ?> 
-                               <span class="estado-liquido">Litros.</span>
-                             <?php
-                              }
-                              else {
-                                   ?>
-                                   <p class="estado-liquido">Sólido.</p>
-                                 <?php
-                              }
-                                   ?>                       
-                     </div>
-                     <?php
-                     // Verifica si el ID del producto actual coincide con el ID guardado en la sesión
-                     if (isset($producto_agregado_id) && $producto_agregado_id == $producto['id']) {
-                         $texto_boton = "¡Añadido! Seguir Comprando";
-                         $clase_boton = "btn-agregado";
-                     } else {
-                         $texto_boton = "Añadir al 🛒";
-                         $clase_boton = "";
-                     }
-         ?>
-                         <button type="submit" name="agregar_carrito" class="<?php echo $clase_boton; ?>">
-                             <?php echo htmlspecialchars($texto_boton); ?>
-                         </button>     
-                     </form>
-                 </div>
-                 <?php
-            }
-        } else {
-            echo "<p>No se encontraron productos.</p>";
-        }
-        ?>
-    </div> </section>
+        <?php if (!empty($productos)): ?>
+            <?php foreach ($productos as $producto): ?>
+                <div class="product">
+                    <form action="procesar_carrito1.php" method="post">
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <input type="hidden" name="id" value="<?php echo htmlspecialchars($producto['id']); ?>">
+                        
+                        <img src="ver_imagen.php?id=<?php echo $producto['id']; ?>" 
+                             alt="<?php echo htmlspecialchars($producto['producto_nombre']); ?>" 
+                             loading="lazy">
+
+                        <h3 style="font-size: 1rem; margin: 5px 0;"><?php echo htmlspecialchars($producto['producto_nombre']); ?></h3>
+                        
+                        <p class="product-description" style="font-size: 0.8rem; height: 40px; overflow: hidden;">
+                            <?php echo htmlspecialchars($producto['producto_descripcion']); ?>
+                        </p>
+                        
+                        <p><strong>$<?php echo number_format($producto['precio'], 2); ?></strong></p>
+                        
+                        <div class="quantity-control" style="transform: scale(0.9);">
+                            <button type="button" class="quantity-btn minus-btn" data-product-id="<?php echo $producto['id']; ?>">-</button>
+                            <input type="number" name="cantidad" id="cantidad_<?php echo $producto['id']; ?>" value="1" min="1" class="quantity-input">
+                            <button type="button" class="quantity-btn plus-btn" data-product-id="<?php echo $producto['id']; ?>">+</button>
+                        </div>
+
+                        <?php
+                        $agregado = (isset($producto_agregado_id) && $producto_agregado_id == $producto['id']);
+                        $txt = $agregado ? "¡Añadido!" : "Añadir 🛒";
+                        $css_btn = $agregado ? "btn-agregado" : "";
+                        ?>
+
+                        <button type="submit" name="agregar_carrito" class="<?php echo $css_btn; ?>" style="width: 100%; padding: 8px; font-size: 0.85rem;">
+                            <?php echo $txt; ?>
+                        </button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <p style="grid-column: 1/-1;">No se encontraron productos.</p>
+        <?php endif; ?>
+    </div>
+</section>
 <div class="siderbar">
     <ul>
     <h2>Síguenos en:</h2>
@@ -844,34 +974,25 @@ if (isset($error_sesion) && !empty($error_sesion)) {
     </footer>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // === SECCIÓN 1: MENÚ Y CANTIDADES ===
     const menuToggle = document.querySelector('.menu-toggle');
     const navUl = document.querySelector('nav ul');
 
-   if (menuToggle && navUl) {
+    if (menuToggle && navUl) {
         menuToggle.addEventListener('click', () => {
             navUl.classList.toggle('active');
             menuToggle.classList.toggle('active');
         });
     }
 
-    const navLinks = document.querySelectorAll('nav ul li a');
-    navLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            navUl.classList.remove('active');
-            menuToggle.classList.remove('active');
-        });
-    });
-
-    // --- INICIO: Lógica para los botones de cantidad personalizados ---
     const quantityControls = document.querySelectorAll('.quantity-control');
-
     quantityControls.forEach(control => {
         const minusBtn = control.querySelector('.minus-btn');
         const plusBtn = control.querySelector('.plus-btn');
         const quantityInput = control.querySelector('.quantity-input');
 
         minusBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Detiene la propagación del evento
+            e.stopPropagation();
             let currentValue = parseInt(quantityInput.value);
             if (currentValue > parseInt(quantityInput.min)) {
                 quantityInput.value = currentValue - 1;
@@ -879,24 +1000,50 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         plusBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Detiene la propagación del evento
+            e.stopPropagation();
             let currentValue = parseInt(quantityInput.value);
             quantityInput.value = currentValue + 1;
         });
+    });
 
-        quantityInput.addEventListener('change', (e) => {
-            e.stopPropagation(); // Detiene la propagación del evento
-            let currentValue = parseInt(quantityInput.value);
-            const minValue = parseInt(quantityInput.min);
+    // === SECCIÓN 2: BUSCADOR DE SUGERENCIAS ===
+    const buscador = document.getElementById('buscador');
+    const listaSugerencias = document.getElementById('lista-sugerencias');
 
-            if (isNaN(currentValue) || currentValue < minValue) {
-                quantityInput.value = minValue;
+    if (buscador && listaSugerencias) {
+        buscador.addEventListener('input', function () {
+            let consulta = this.value;
+
+            if (consulta.length >= 2) {
+                fetch('buscar_sugerencias.php?q=' + encodeURIComponent(consulta))
+                    .then(response => response.text())
+                    .then(data => {
+                        listaSugerencias.innerHTML = data;
+                        listaSugerencias.style.display = 'block';
+                    })
+                    .catch(error => console.error('Error:', error));
+            } else {
+                listaSugerencias.style.display = 'none';
             }
         });
-    });
-    // --- FIN: Lógica para los botones de cantidad personalizados ---
 
-}); 
+        document.addEventListener('click', function (e) {
+            if (!buscador.contains(e.target) && !listaSugerencias.contains(e.target)) {
+                listaSugerencias.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Función fuera del DOMContentLoaded para que sea global
+function seleccionarSugerencia(nombre) {
+    const buscador = document.getElementById('buscador');
+    if (buscador) {
+        buscador.value = nombre;
+        document.getElementById('lista-sugerencias').style.display = 'none';
+        buscador.closest('form').submit(); 
+    }
+}
 </script>
 </body>
 </html>
