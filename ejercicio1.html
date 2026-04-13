@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Contador JS</title>
+</head>
+<body>
+
+    <h1>Contador de Clics</h1>
+
+    <p>Has hecho clic: <span id="contador">0</span> veces.</p>
+
+    <button id="miBoton">¡Haz Clic!</button>
+
+    <script>
+        let cuenta = 0;
+        function incrementarContador(){
+            cuenta++;
+            const elementoContador = document.querySelector("#contador");
+            elementoContador.textContent = cuenta;
+         }   
+            const boton = document.querySelector("#miBoton");
+            boton.addEventListener("click",incrementarContador);
+            
+    </script>
+
+</body>
+</html>

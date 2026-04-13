@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Toppings Pro + API</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
+        .completada { text-decoration: line-through; color: #a0a0a0; opacity: 0.7; }
+        .desvanecer { opacity: 0; transform: translateX(20px); transition: 0.4s; }
+        li { 
+            background: white; margin: 10px 0; padding: 10px; 
+            border-radius: 5px; display: flex; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        span { cursor: pointer; flex-grow: 1; }
+        button:disabled { opacity: 0.3; }
+        /* Estilo para el nuevo botón */
+        #btnImportar { background-color: #ff9800; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+        #btnImportar:hover { background-color: #e68a00; }
+    </style>
+</head>
+<body>
+
+    <h2>🍕 Mis Toppings Pro</h2>
+    <input type="text" id="inputTarea" placeholder="¿Qué más le ponemos?">
+    <button id="miBoton">Agregar</button>
+    <button id="btnImportar">☁️ Importar de la Nube</button>
+    <ul id="miLista"></ul>
+    <script>
+        const boton = document.querySelector('#miBoton');
+        const listaContenedora = document.querySelector('#miLista');
+        const input = document.querySelector('#inputTarea');
+        const btnImportar = document.querySelector('#btnImportar'); // NUEVO
+
+        let misToppings = JSON.parse(localStorage.getItem('toppings_v2')) || [];
+
+        // --- FUNCIONES EXISTENTES ---
+        function renderizarToppings() {
+            listaContenedora.innerHTML = "";
+            misToppings.forEach((topping, indice) => {
+                const li = document.createElement('li');
+                const span = document.createElement('span');
+                span.textContent = topping.texto;
+                if (topping.completado) span.classList.add('completada');
+
+                span.onclick = () => {
+                    topping.completado = !topping.completado;
+                    guardar();
+                    renderizarToppings();
+                };
+
+                const btnEliminar = document.createElement('button');
+                btnEliminar.textContent = "🗑️";
+                btnEliminar.onclick = () => {
+                    li.classList.add('desvanecer');
+                    setTimeout(() => {
+                        misToppings.splice(indice, 1);
+                        guardar();
+                        renderizarToppings();
+                    }, 400);
+                };
+
+                li.appendChild(span);
+                li.appendChild(btnEliminar);
+                listaContenedora.appendChild(li);
+            });
+            validarInput();
+        }
+
+        function guardar() {
+            localStorage.setItem('toppings_v2', JSON.stringify(misToppings));
+        }
+
+        function agregarTarea() {
+            if (input.value.trim() === "") return;
+            misToppings.push({ texto: input.value.trim(), completado: false });
+            guardar();
+            renderizarToppings();
+            input.value = "";
+            input.focus();
+        }
+
+        // --- NUEVO: FUNCIÓN ASÍNCRONA (API) ---
+async function importarToppingsExternos() {
+    try {
+        const respuesta = await fetch('https://jsonplaceholder.typicode.com/users');
+        const datos = await respuesta.json();
+
+        const nuevos = datos.slice(0, 5).map(item => ({
+            // Aquí "fabricamos" una sola frase con toda la info del usuario
+            texto: `👤 ${item.name} (@${item.username}) - 📧 ${item.email} ... - 📍 Ciudad: ${item.address.city}`,
+            completado: false
+        }));
+
+        misToppings = [...misToppings, ...nuevos];
+        guardar();
+        renderizarToppings();
+    } catch (error) {
+        alert("Error al importar");
+    }
+}
+
+        function validarInput() {
+            boton.disabled = (input.value.trim() === "");
+        }
+
+        // --- LISTENERS ---
+        boton.addEventListener('click', agregarTarea);
+        input.addEventListener('input', validarInput);
+        input.addEventListener('keydown', (e) => { if(e.key === "Enter") agregarTarea() });
+        
+        // Conectamos el botón de la nube
+        btnImportar.addEventListener('click', importarToppingsExternos);
+
+        renderizarToppings();
+    </script>
+</body>
+</html>

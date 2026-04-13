@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Toggle de Modo Oscuro</title>
+		<style>
+		/* estilos base (Modo claro predertiminado) */
+		body{
+			background-color: white;
+			color: black;
+			transition: background-color: 0.5s, color: 0.5s; /*Animacion suave*/
+			font-family: sans-serif;
+			text-align: center;
+			padding-top: 50px; 
+		}	
+		/* estilos modo oscuro, se activan con JS*/
+		.modo-oscuro{
+			background-color: #333; /*gris oscuro*/
+			color: #f0f0f0; /* blanco suave */
+
+		}	
+        </style>
+</head>
+<body>
+	<h1>Interruptor de Modo</h1>
+	<p>Haz click para cambiar entre modo claro y el modo oscuro</p>
+	<button id="toggleBtn">Activar Modo oscuro</button>
+	<script>
+		function alternarModo(){
+			//selecciona el elemento body completo.
+			const cuerpo = document.querySelector("body");
+
+			//selecciona el boton para cambiar su texto.
+			const boton = document.querySelector("#toggleBtn");
+        // Esta es la línea clave: añade la clase si no está presente, y la quita si sí lo está.
+        // Es el interruptor 'toggle'.			
+			cuerpo.classList.toggle("modo-oscuro");
+
+			//logica para cambiar el texto del boton
+			//Pregunta: ¿Ahora el body tiene la clase modo-oscuro?
+			if(cuerpo.classList.contains("modo-oscuro")){
+				boton.textContent = "Activar Modo Claro"; //Está Oscuro, activar a modo claro
+			}else{
+				boton.textContent = "Activar Modo Oscuro"; //Está Claro, activar a modo oscuro
+			}
+		}
+		//Inicializa el escuchador de eventos
+		const boton = document.querySelector("#toggleBtn");
+		boton.addEventListener("click",alternarModo);
+	</script>
+</body>
+
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Toppings Pro</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
+        .completada { text-decoration: line-through; color: #a0a0a0; opacity: 0.7; }
+        .desvanecer { opacity: 0; transform: translateX(20px); transition: 0.4s; }
+        li { 
+            background: white; margin: 10px 0; padding: 10px; 
+            border-radius: 5px; display: flex; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        span { cursor: pointer; flex-grow: 1; }
+        button:disabled { opacity: 0.3; }
+    </style>
+</head>
+<body>
+
+    <h2>🍕 Mis Toppings Pro</h2>
+    <input type="text" id="inputTarea" placeholder="¿Qué más le ponemos?">
+    <button id="miBoton">Agregar</button>
+    <ul id="miLista"></ul>
+
+    <script>
+        const boton = document.querySelector('#miBoton');
+        const listaContenedora = document.querySelector('#miLista');
+        const input = document.querySelector('#inputTarea');
+
+        // 1. CARGA INICIAL (Ahora manejamos objetos)
+        let misToppings = JSON.parse(localStorage.getItem('toppings_v2')) || [];
+
+        function renderizarToppings() {
+            listaContenedora.innerHTML = "";
+            
+            misToppings.forEach((topping, indice) => {
+                const li = document.createElement('li');
+                
+                const span = document.createElement('span');
+                span.textContent = topping.texto;
+                
+                // Si estaba completado, le ponemos la clase al dibujarlo
+                if (topping.completado) {
+                    span.classList.add('completada');
+                }
+
+                // EVENTO: Tachar/Destachar
+                span.onclick = () => {
+                    topping.completado = !topping.completado; // Cambia true a false o viceversa
+                    guardar();
+                    renderizarToppings();
+                };
+
+                const btnEliminar = document.createElement('button');
+                btnEliminar.textContent = "🗑️";
+                btnEliminar.onclick = () => {
+                    li.classList.add('desvanecer');
+                    setTimeout(() => {
+                        misToppings.splice(indice, 1);
+                        guardar();
+                        renderizarToppings();
+                    }, 400);
+                };
+
+                li.appendChild(span);
+                li.appendChild(btnEliminar);
+                listaContenedora.appendChild(li);
+            });
+            validarInput();
+        }
+
+        function guardar() {
+            localStorage.setItem('toppings_v2', JSON.stringify(misToppings));
+        }
+
+        function agregarTarea() {
+            if (input.value.trim() === "") return;
+            
+            // Agregamos un OBJETO
+            misToppings.push({
+                texto: input.value.trim(),
+                completado: false
+            });
+            
+            guardar();
+            renderizarToppings();
+            input.value = "";
+            input.focus();
+        }
+
+        function validarInput() {
+            boton.disabled = (input.value.trim() === "");
+        }
+
+        boton.addEventListener('click', agregarTarea);
+        input.addEventListener('input', validarInput);
+        input.addEventListener('keydown', (e) => { if(e.key === "Enter") agregarTarea() });
+
+        renderizarToppings();
+    </script>
+</body>
+</html>

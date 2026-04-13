@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Pizzería Pro - Supabase Cloud</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; padding: 20px; display: flex; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .menu { flex: 2; }
+        .pedido { flex: 1; min-width: 300px; border-left: 5px solid #ff9800; }
+        
+        .grid-toppings { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+            gap: 15px; margin-top: 20px;
+        }
+        
+        .card {
+            border: 2px solid #eee; padding: 15px; border-radius: 10px; text-align: center;
+            cursor: pointer; transition: 0.3s;
+        }
+        .card:hover { border-color: #ff9800; background: #fffdfa; transform: translateY(-3px); }
+        .card span { font-size: 2.5rem; display: block; margin-bottom: 5px; }
+
+        .item-pedido { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .btn-ordenar { 
+            width: 100%; background: #4caf50; color: white; border: none; 
+            padding: 15px; border-radius: 8px; font-size: 1rem; cursor: pointer; margin-top: 20px;
+        }
+        /* Estilo para el campo de nombre */
+        .input-nombre {
+            width: 100%; padding: 10px; margin-top: 15px; border: 1px solid #ccc; 
+            border-radius: 5px; box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="panel menu">
+        <h2>🍕 Haz tu Pedido de Pizzas (Desde la Nube)</h2>
+        <div id="contenedorMenu" class="grid-toppings">Cargando ingredientes...</div>
+    </div>
+
+    <div class="panel pedido">
+        <h2>🛒 Tu Pedido</h2>
+        <div id="listaPedido"></div>
+        <hr>
+        
+        <input type="text" id="nombreCliente" class="input-nombre" placeholder="¿A nombre de quién?">
+        <input type="text" id="telefonoCliente" class="input-nombre" placeholder="Tu teléfono de contacto...">        
+        <h3>Total: $<span id="totalTxt">0.00</span></h3>
+        <button class="btn-ordenar" onclick="confirmarPedido()">Enviar Pedido a Cocina</button>
+    </div>
+
+    <script>
+    const SUPABASE_URL = 'https://hjwfmexfahcqsiqnsxpd.supabase.co'; 
+    const SUPABASE_KEY = 'sb_publishable_mH6jx0dJyPpbxIGyvWlP4g_5o8NlOmJ';
+    const clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    let pedido = [];
+
+    async function obtenerIngredientes() {
+        const { data, error } = await clienteSupabase
+            .from('toppings')
+            .select('*')
+            .order('nombre', { ascending: true });
+
+        if (error) {
+            document.getElementById('contenedorMenu').innerHTML = "Error al conectar con la base de datos.";
+            return;
+        }
+        dibujarMenu(data);
+    }
+
+    function dibujarMenu(ingredientes) {
+        const contenedor = document.getElementById('contenedorMenu');
+        contenedor.innerHTML = ""; 
+        ingredientes.forEach(ing => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <span>${ing.icono || '🍕'}</span>
+                <strong>${ing.nombre}</strong><br>
+                $${Number(ing.precio).toFixed(2)}
+            `;
+            div.onclick = () => agregarAlPedido(ing);
+            contenedor.appendChild(div);
+        });
+    }
+
+    function agregarAlPedido(ingrediente) {
+        pedido.push(ingrediente);
+        actualizarInterfaz();
+    }
+
+    function actualizarInterfaz() {
+        const lista = document.getElementById('listaPedido');
+        const totalSpan = document.getElementById('totalTxt');
+        lista.innerHTML = "";
+        let total = 0;
+        pedido.forEach((item, index) => {
+            total += Number(item.precio);
+            lista.innerHTML += `
+                <div class="item-pedido">
+                    <span>${item.icono || '🍕'} ${item.nombre}</span>
+                    <span>$${Number(item.precio).toFixed(2)} <button onclick="quitar(${index})">❌</button></span>
+                </div>`;
+        });
+        totalSpan.innerText = total.toFixed(2);
+    }
+
+    function quitar(index) {
+        pedido.splice(index, 1);
+        actualizarInterfaz();
+    }
+
+    // --- FUNCIÓN ACTUALIZADA PARA ENVIAR EL NOMBRE ---
+    async function confirmarPedido() {
+        const nombreInput = document.getElementById('nombreCliente');
+        const telefonoInput = document.getElementById('telefonoCliente');
+        const nombre = nombreInput.value.trim();
+        const telefono = telefonoInput.value.trim(); // Guardamos el valor        
+
+        // Validaciones
+    if (!nombre || !telefono) return alert("Por favor, pon tu nombre y teléfono.");
+    if (pedido.length === 0) return alert("Selecciona al menos un ingrediente.");
+
+    const listaNombres = pedido.map(ing => ing.nombre).join(", ");
+    const precioTotal = pedido.reduce((sum, ing) => sum + Number(ing.precio), 0);
+
+    try {
+        const { error } = await clienteSupabase
+            .from('pedidos')
+            .insert([{ 
+                nombre: nombre, 
+                telefono: telefono, // <--- Enviamos el teléfono a Supabase
+                contenido: listaNombres, 
+                total: precioTotal 
+            }]);
+
+        if (error) throw error;
+
+        alert("¡Pedido enviado!");
+        pedido = [];
+        nombreInput.value = ""; 
+        telefonoInput.value = ""; // Limpiamos el campo
+        actualizarInterfaz();
+    } catch (error) {
+        alert("Error al enviar. ¿Creaste la columna 'telefono' en Supabase?");
+    }
+}
+
+    obtenerIngredientes();
+    </script>
+</body>
+</html>

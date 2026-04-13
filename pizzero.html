@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel del Pizzero 👨‍🍳</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #2c3e50; color: white; padding: 20px; }
+        h1 { text-align: center; color: #ecf0f1; border-bottom: 2px solid #e67e22; padding-bottom: 10px; }
+        .grid-pedidos { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+            gap: 20px; margin-top: 20px;
+        }
+        .ticket {
+            background: #fff; color: #333; padding: 15px; border-radius: 8px;
+            border-left: 10px solid #e67e22; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: relative; animation: aparecer 0.5s ease;
+        }
+        @keyframes aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hora { font-size: 0.8rem; color: #7f8c8d; display: block; margin-bottom: 10px; }
+        .contenido { font-weight: bold; font-size: 1.1rem; color: #2c3e50; }
+        .total { display: block; margin-top: 15px; font-size: 1.2rem; color: #27ae60; text-align: right; font-weight: bold; }
+        button:hover {
+            background: #d35400 !important;
+        }        
+    </style>
+</head>
+<body>
+<div id="capaInicio" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column;">
+    <h2 style="color: white;">👨‍🍳 ¡Hola, Pizzero!</h2>
+    <p style="color: white;">Haz clic abajo para activar las alertas de pedidos.</p>
+    <button onclick="iniciarTurno()" style="background: #e67e22; color: white; padding: 15px 30px; font-size: 20px; border: none; border-radius: 5px; cursor: pointer;">
+        🔔 Iniciar Turno
+    </button>
+</div>
+    <h1>👨‍🍳 Cocina Activa</h1>
+    <div id="listaPedidos" class="grid-pedidos">Cargando pedidos desde la nube...</div>
+
+    <script>
+        const SUPABASE_URL = 'https://hjwfmexfahcqsiqnsxpd.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_mH6jx0dJyPpbxIGyvWlP4g_5o8NlOmJ';
+        const clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function cargarPedidos() {
+            console.log("Consultando pedidos...");
+            const { data, error } = await clienteSupabase
+                .from('pedidos')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Error de conexión:", error);
+                document.getElementById('listaPedidos').innerHTML = "Error al cargar pedidos.";
+                return;
+            }
+
+            console.log("Pedidos recibidos:", data);
+            renderizarTickets(data);
+        }
+
+        function renderizarTickets(pedidos) {
+            const contenedor = document.getElementById('listaPedidos');
+            if (!pedidos || pedidos.length === 0) {
+                contenedor.innerHTML = "<h3>No hay pedidos pendientes 🍕</h3>";
+                cambiarColor = document.body.style.backgroundColor = "green";
+                return;
+            }
+
+            contenedor.innerHTML = "";
+            document.body.style.backgroundColor = "#2c3e50";
+            pedidos.forEach(p => {
+                const fecha = p.created_at ? new Date(p.created_at).toLocaleTimeString() : "Sin hora";
+                const totalFormateado = p.total ? Number(p.total).toFixed(2) : "0.00";
+
+                const div = document.createElement('div');
+                div.className = 'ticket';
+                div.innerHTML = `
+    <span class="hora">🕒 Recibido: ${fecha}</span>
+    <div style="background: #fff5e6; padding: 10px; border-radius: 4px; border-left: 3px solid #e67e22; margin-bottom: 10px;">
+        <div style="font-size: 1.2rem; color: #d35400; font-weight: bold;">👤 ${p.nombre || "Anónimo"}</div>
+        <div style="font-size: 1rem; color: #2c3e50;">📞 Tel: ${p.telefono || "Sin teléfono"}</div>
+    </div>
+    <div class="contenido">${p.contenido || "Pedido vacío"}</div>
+    <span class="total">Total: $${totalFormateado}</span>
+    <button onclick="despacharPedido(${p.id}, '${p.telefono}', '${p.nombre}', '${p.contenido}')"
+    style="width: 100%; margin-top: 10px; background: #e67e22; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">
+        ✅ DESPACHAR
+    </button>
+`;
+                contenedor.appendChild(div);
+            });
+        }
+
+        const canal = clienteSupabase
+            .channel('canal-diagnostico')
+            .on(
+                'postgres_changes', 
+                { event: '*', schema: 'public', table: 'pedidos' }, 
+                (payload) => {
+                    // Esto tiene que salir SI O SI si la señal llega
+                    console.log("Datos:", payload);
+                    cargarPedidos();
+                    reproducirSonido();
+                }
+            )
+            .subscribe((status) => {
+                console.log("📡 Estado de la antena:", status);
+            });
+
+                // Función de sonido mejorada para la prueba
+function reproducirSonido() {
+    console.log("🔔 ¡Bip fuerte activado!");
+
+    // 1. Alerta visual (para asegurar que el código corre)
+    const aviso = document.createElement('div');
+    aviso.innerHTML = "🍕 ¡PEDIDO NUEVO!";
+    aviso.style = "position:fixed; top:20px; right:20px; background:#ff5722; color:white; padding:25px; border-radius:12px; z-index:9999; font-weight:bold; font-size:24px; box-shadow: 0 0 20px rgba(0,0,0,0.5);";
+    document.body.appendChild(aviso);
+    setTimeout(() => aviso.remove(), 4000);
+
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+        
+        // Creamos dos osciladores para un sonido más potente (tipo campana)
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        // Configuración de tonos
+        osc1.frequency.setValueAtTime(880, audioCtx.currentTime); // Tono alto
+        osc2.frequency.setValueAtTime(440, audioCtx.currentTime); // Tono bajo para dar cuerpo
+
+        // --- EL VOLUMEN ---
+        // Subimos a 0.8 (Cuidado: 1.0 es el máximo y puede distorsionar)
+        gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime); 
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+
+        audioCtx.resume().then(() => {
+            osc1.start();
+            osc2.start();
+            osc1.stop(audioCtx.currentTime + 0.8);
+            osc2.stop(audioCtx.currentTime + 0.8);
+        });
+    } catch (e) {
+        console.error("Error de audio:", e);
+    }
+}
+
+        function iniciarTurno() {
+            // Reproduce un sonido corto para activar el permiso
+            reproducirSonido();
+            
+            // Esconde la capa oscura
+            document.getElementById('capaInicio').style.display = 'none';
+            
+            console.log("Turno iniciado y sonido activado.");
+        }
+        // Ejecución inicial
+        cargarPedidos();
+       //despacha el pedido
+            async function despacharPedido(id, telefono, nombre, pizza) {
+                if (!confirm(`¿Despachar pedido de ${nombre}?`)) return;
+            // Usamos .trim() aquí también para asegurar
+                const nombreLimpio = nombre.trim(); 
+                const pizzaLimpia = pizza.trim();
+                // 1. Creamos el texto base
+                let mensaje = `Hola ${nombre}, tu pizza de (${pizza}) ya esta lista y va en camino. Buen provecho`;
+
+                // 2. LIMPIEZA EXTREMA: Quitamos cualquier caracter que no sea letra, numero o espacio
+                // Esto borra el emoji oculto que esta causando el rombo
+                mensaje = mensaje.replace(/[^\x20-\x7E]/g, ''); 
+
+                // 3. Añadimos el punto final manualmente después de la limpieza
+                mensaje += ".";
+
+                // 4. Codificamos para URL
+                const mensajeURL = encodeURIComponent(mensaje);
+
+                if (telefono && telefono !== 'undefined' && telefono.trim() !== "") {
+                    // Quitamos espacios o guiones del teléfono por si acaso
+                    const telLimpio = telefono.replace(/\D/g, ''); 
+                    window.open(`https://wa.me/58${telLimpio}?text=${mensajeURL}`, '_blank');
+                }
+
+                // 5. Borrado de Supabase
+                const { error } = await clienteSupabase.from('pedidos').delete().eq('id', id);
+                if (error) alert("Error: " + error.message);
+            }   
+    </script>
+</body>
+</html>
