@@ -5,6 +5,11 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once 'conexion.php';
 
+if ($control['pago_realizado'] == 1) {
+    // Si ya pagó, no hacemos más validaciones y lo dejamos pasar
+    return; 
+}
+
 // 1. ¿Está logueado?
 if (!isset($_SESSION['usuario_id'])) {
     header("Location: login.php");

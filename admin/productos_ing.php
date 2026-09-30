@@ -104,7 +104,6 @@ require '../conexion.php';
     <div class="container">     
     <h1>Ingresar Producto</h1>
     <form action="procesar_producto.php" method="post" enctype="multipart/form-data"> 
-      <label for="id_categoria">Categorías:</label>
           <select id="id_categoria" name="id_categoria" required>
               <option value="">Seleccione una Categoría</option>
                 <?php foreach ($res as $row): ?>
@@ -113,12 +112,9 @@ require '../conexion.php';
                     </option>
                 <?php endforeach; ?>
           </select>        
-        <label for="nombres">Nombre:</label>
-        <input type="text" id="nombres" name="nombre" required><br>
-        <label for="descripcion">Descripcion:</label>
-        <input type="text" id="descripcion" name="descripcion" required><br>
-
-        <label for="id_estado">Estado:</label>
+        <input type="text" id="nombres" name="nombre" placeholder="Nombre" required><br>
+        <!-- <label for="descripcion">Descripcion:</label> -->
+        <input type="text" id="descripcion" name="descripcion" placeholder="Descripcion" required><br>
           <select id="id_estado" name="id_estado" required>
               <option value="">Seleccione un Estado</option>
                 <?php foreach ($estados as $rowe): ?>
@@ -127,8 +123,9 @@ require '../conexion.php';
                     </option>
                 <?php endforeach; ?>
           </select>
-        <label for="precio">Precio:</label>
-        <input type="text" id="precio" name="precio" required><br>
+        <input type="text" id="existencia" name="existencia" placeholder="stock/cantidad" min="0" required><br>
+
+        <input type="text" id="precio" name="precio" placeholder="Precio" required><br>
 
         <label for="imagen">Imagen:</label>
         <input type="file" id="imagen" name="imagen" required><br>

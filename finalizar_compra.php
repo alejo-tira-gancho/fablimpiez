@@ -17,6 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit();
 }
 
+
+
 require_once 'conexion.php';
 
 if (!isset($_SESSION['usuario_id'])) {
@@ -45,15 +47,34 @@ if (empty($metodo_pago)) {
     exit();
 }
 
-// Respaldo de seguridad para la validación de Pago Móvil
+// Respaldo de seguridad para la validación general de Pago Móvil
 if ($metodo_pago === 'pago_movil' && (empty($banco) || empty($telefono) || $monto_pagado === false || empty($referencia) || empty($fecha_pago))) {
     $_SESSION['error_mensaje'] = "Faltan datos del Pago Móvil o el monto es inválido.";
     header('Location: carrito.php');
     exit();
 }
 
+// 📌 UBICACIÓN EXACTA: Validaciones específicas para fecha_pago en Pago Móvil
+if ($metodo_pago === 'pago_movil') {
+    // 1. Validar que el formato de fecha sea AAAA-MM-DD
+    $d = DateTime::createFromFormat('Y-m-d', $fecha_pago);
+    if (!($d && $d->format('Y-m-d') === $fecha_pago)) {
+        $_SESSION['error_mensaje'] = "El formato de la fecha es inválido.";
+        header("Location: carrito.php");
+        exit();
+    }
+
+    // 2. Validar que la fecha no sea superior a la fecha actual
+    $hoy = new DateTime('today'); // Comparar ignorando la hora actual
+    if ($d > $hoy) {
+        $_SESSION['error_mensaje'] = "La fecha del pago no puede ser mayor a la fecha actual.";
+        header("Location: carrito.php");
+        exit();
+    }
+}
+
 // Estado inicial del pedido (2: Pago Registrado, 1: Pendiente)
-$estado_inicial = ($metodo_pago === 'pago_movil' ? 2 : 1); 
+$estado_inicial = ($metodo_pago === 'pago_movil' ? 2 : 1);
 
 try {
     $pdo = connectToDb();

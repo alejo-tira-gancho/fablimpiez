@@ -504,7 +504,129 @@ footer {
     background-color: #0056b3;
 }
 
+/* Estilos para el autocompletado */
+.sugerencias-box {
+    position: absolute;
+    top: 100%; /* Justo debajo del input */
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.sugerencia-item {
+    padding: 10px;
+    cursor: pointer;
+}
+.sugerencia-item:hover {
+    background-color: #f0f0f0;
+}
+/*=== ===*/
+/* Contenedor que centra el formulario en la página */
+.search-container {
+    display: flex;
+    justify-content: center;
+    margin: 30px 0;
+    width: 100%;
+}
 
+/* El formulario con efecto de sombra y foco */
+.search-form-ajax {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    max-width: 500px;
+    background: white;
+    border-radius: 8px; /* Bordes redondeados generales */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Sombra elegante */
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+/* Efecto cuando el usuario está escribiendo */
+.search-form-ajax:focus-within {
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+}
+
+/* Envoltorio del input */
+.input-group {
+    position: relative;
+    flex-grow: 1;
+}
+
+/* Estilos para el campo de texto con la lupa integrada */
+#buscador {
+    width: 100%;
+    height: 50px; /* Un poco más alto para mayor comodidad */
+    padding: 10px 15px 10px 45px;
+    border: 1px solid #ddd;
+    border-right: none; /* Unión invisible con el botón */
+    border-radius: 8px 0 0 8px;
+    outline: none;
+    font-size: 16px;
+    color: #333;
+    /* Lupa elegante como fondo */
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="gray" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 15px center;
+}
+
+/* El botón de buscar con degradado suave */
+.btn-search {
+    background: linear-gradient(135deg, #6B8E23 0%, #556B2F 100%);
+    color: white;
+    border: none;
+    border-radius: 0 8px 8px 0;
+    padding: 0 25px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-search:hover {
+    background: linear-gradient(135deg, #556B2F 0%, #6B8E23 100%);
+    filter: brightness(1.1);
+}
+
+/* Caja de sugerencias maquillada */
+.sugerencias-box {
+    position: absolute;
+    top: calc(100% + 5px); /* Separación elegante de 5px */
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    overflow: hidden; /* Para que los items respeten el redondeo */
+    border: 1px solid #eee;
+}
+
+.sugerencia-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+    border-bottom: 1px solid #f9f9f9;
+    color: #444;
+    transition: background 0.2s;
+}
+
+.sugerencia-item:last-child { border-bottom: none; }
+
+.sugerencia-item:hover {
+    background-color: #f4f7eb;
+    color: #6B8E23;
+    font-weight: 500;
+}
+
+
+
+/*=== ===*/
 
 /* === INICIO: MEDIA QUERY PARA MÓVILES (max-width: 768px) === */
 @media (max-width: 768px) {

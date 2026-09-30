@@ -22,7 +22,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         // Hashear la contraseña antes de guardarla
         $password_hasheada = password_hash($password_plana, PASSWORD_DEFAULT);
-
         $pdo = connectToDb(); // Intenta conectar a la base de datos
 
         if (!$pdo) {
@@ -64,7 +63,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>

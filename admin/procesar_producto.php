@@ -13,8 +13,9 @@ function generarNombreUnico($nombreOriginal) {
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
     <title>Resultado de la Carga</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="3;url=productos_ing.php">    
     <style>
         /* Aquí van tus estilos CSS */
         .mensaje-exito, .mensaje-error, .mensaje-informativo {
@@ -51,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $descripcion = $_POST['descripcion'] ?? '';
     $precio = $_POST['precio'] ?? '';
     $idcategoria = $_POST['id_categoria'];
-    $estado = $_POST['estado'];
+    $estado = $_POST['id_estado'];
+    $stock = $_POST['existencia'];
     // Validación básica de los datos
     if (empty($nombre) || empty($descripcion) || empty($precio)) {
         echo "Por favor, completa todos los campos.";
@@ -97,8 +99,8 @@ try {
 
             // Guardar en la base de datos usando una consulta preparada con PDO
             $conn = connectToDb();
-            $stmt = $conn->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen, categoria_id, mime_type, estado_producto) 
-                                    VALUES (:nombre, :descripcion, :precio, :imagen, :categoria_id, :mime_type, :estado)");
+            $stmt = $conn->prepare("INSERT INTO productos (nombre, descripcion, precio, imagen, categoria_id, mime_type, id_estado, stock)
+                                    VALUES (:nombre, :descripcion, :precio, :imagen, :categoria_id, :mime_type, :estado, :stock)");
             // $stmt->bindParam(':id_especialidad', $id_especialidad, PDO::PARAM_INT);
             $stmt->bindParam(':nombre', $nombre, PDO::PARAM_STR);
             $stmt->bindParam(':descripcion', $descripcion, PDO::PARAM_STR);
@@ -106,8 +108,8 @@ try {
             $stmt->bindParam(':imagen', $imagen_binaria, PDO::PARAM_LOB); // Usar PARAM_LOB para datos binarios grandes
             $stmt->bindParam(':categoria_id', $idcategoria, PDO::PARAM_INT);
             $stmt->bindParam(':mime_type', $mime_type, PDO::PARAM_STR);
-            $stmt->bindParam('estado_producto',$estado, PDO::PARAM_STR);
-
+            $stmt->bindParam(':estado',$estado, PDO::PARAM_STR);
+            $stmt->bindParam(':stock',$stock, PDO::PARAM_STR);
             try {
                 $stmt->execute();
             echo '<div class="mensaje-exito">Nuevo producto registrado correctamente</div>';

@@ -123,18 +123,18 @@ if ($pdo) {
                 
                 <div class="pago-opciones">
                     <strong>Método de Pago:</strong>
-                    <label>
+                   <!--  <label>
                         <input type="radio" name="metodo_pago" value="efectivo_retiro" id="pago-efectivo" required>
                         Efectivo (Pague en la tienda)
                     </label>
-                    <label>
+            -->         <label>
                         <input type="radio" name="metodo_pago" value="pago_movil" id="pago-movil-radio">
                         Pago Móvil (Realice el pago móvil Antes de Finalizar la Compra)
                     </label>
-                    <label>
+<!--                     <label>
                         <input type="radio" name="metodo_pago" value="tarjeta_en_tienda">
                         Tarjeta / Punto de Venta (En tienda)
-                    </label>
+                    </label> -->
                 </div>
 
                 <div id="pago-movil-form">
@@ -150,7 +150,12 @@ if ($pdo) {
                     <input type="text" name="referencia" id="pago-referencia" placeholder="Número de Referencia" data-required="false">
                     <small id="error-referencia" class="error-msg"></small>
                     
-                    <input type="date" name="fecha_pago" id="pago-fecha" data-required="false">
+                    <input type="date" 
+                           name="fecha_pago" 
+                           id="pago-fecha" 
+                           data-required="true" 
+                           max="<?php echo date('Y-m-d'); ?>" 
+                           value="<?php echo date('Y-m-d'); ?>">
                     <small id="error-fecha" class="error-msg"></small>
                 </div>
 
@@ -179,27 +184,47 @@ if ($pdo) {
         pagoMovilFields.forEach(f => f.classList.remove('input-error'));
     }
 
-    function validateForm() {
-        let isValid = false;
-        const isPagoMovil = pagoMovilRadio.checked;
-        
-        // Verificar si algún radio está seleccionado
-        radioButtons.forEach(r => { if(r.checked) isValid = true; });
+function validateForm() {
+    let isValid = false;
+    const isPagoMovil = pagoMovilRadio.checked;
+    
+    // Verificar si algún radio de método de pago está seleccionado
+    radioButtons.forEach(r => { if(r.checked) isValid = true; });
 
-        if (isPagoMovil) {
-            clearErrors();
-            for (let field of pagoMovilFields) {
-                if (field.value.trim() === '') {
-                    isValid = false;
-                    document.getElementById(`error-${field.name}`).textContent = 'Obligatorio';
-                    field.classList.add('input-error');
-                }
+    if (isPagoMovil) {
+        clearErrors();
+
+        // 1. Validar campos vacíos en el formulario de Pago Móvil
+        for (let field of pagoMovilFields) {
+            if (field.value.trim() === '') {
+                isValid = false;
+                const errorEl = document.getElementById(`error-${field.name.replace('fecha_pago', 'fecha')}`);
+                if (errorEl) errorEl.textContent = 'Obligatorio';
+                field.classList.add('input-error');
             }
         }
-        
-        btnFinalizar.disabled = !isValid;
-        btnFinalizar.style.opacity = isValid ? '1' : '0.5';
+
+        // 2. Validación específica de fecha_pago
+        const fechaInput = document.getElementById('pago-fecha');
+        if (fechaInput.value !== '') {
+            const fechaSeleccionada = new Date(fechaInput.value + 'T00:00:00');
+            const hoy = new Date();
+            hoy.setHours(23, 59, 59, 999); // Permitir seleccionar el día actual completo
+
+            if (fechaSeleccionada > hoy) {
+                isValid = false;
+                document.getElementById('error-fecha').textContent = 'La fecha no puede ser futura';
+                fechaInput.classList.add('input-error');
+            }
+        }
     }
+    
+    btnFinalizar.disabled = !isValid;
+    btnFinalizar.style.opacity = isValid ? '1' : '0.5';
+}
+
+// Escuchar cambios explícitos en el input de tipo fecha
+document.getElementById('pago-fecha').addEventListener('change', validateForm);
 
     radioButtons.forEach(radio => {
         radio.addEventListener('change', () => {

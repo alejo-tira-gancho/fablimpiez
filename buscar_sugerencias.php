@@ -12,9 +12,10 @@ $q = isset($_GET['q']) ? trim($_GET['q']) : '';
 if (strlen($q) >= 2) {
     try {
         // Buscamos por nombre de producto
-        $query = "SELECT id, producto_nombre, producto_descripcion, precio FROM vproductos 
-          WHERE producto_nombre LIKE :busqueda 
-          OR producto_descripcion LIKE :busqueda 
+        // Cambia estas líneas en tu consulta SQL:
+         $query = "SELECT id, producto_nombre, producto_descripcion, precio FROM vproductos 
+          WHERE producto_nombre ILIKE :busqueda 
+          OR producto_descripcion ILIKE :busqueda 
           LIMIT 6"; // Limitamos a 6 para que la lista no sea eterna
         
         $stmt = $conexion->prepare($query);

@@ -1,35 +1,68 @@
 <?php
 //include 'verificar_sesion.php';
-include __DIR__ . '/verifcar_sesion.php';
+//include __DIR__ . '/verifcar_sesion.php';
 ini_set('display_errors', 0); // No mostrar errores en producción
 error_reporting(E_ALL); // Seguir reportando todos los errores internamente
-session_start(); // ¡Solo esta llamada a session_start()!
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
-require 'conexion.php'; // Asegúrate de que este archivo exista y funcione.
+
+require_once 'conexion.php';
 $conexion = connectToDb();
+
+// --- CONFIGURACIÓN DE PAGINACIÓN ---
+$productos_por_pagina = 5; // Cantidad de tarjetas por pantalla
+$pagina_actual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+if ($pagina_actual < 1) {
+    $pagina_actual = 1;
+}
+$offset = ($pagina_actual - 1) * $productos_por_pagina;
+
+$total_paginas = 1;
+$productos = [];
 
 if ($conexion) {
     // Configurar PDO para que lance excepciones
     $conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    // Asumiendo que 'vproductos' es una vista o tabla que contiene los datos de los productos
-    $productos_query = "SELECT * FROM vproductos";
 
     try {
-        $stmt = $conexion->query($productos_query);
+        // 1. Obtener el total de registros en la vista para calcular páginas
+        $total_query = "SELECT COUNT(*) FROM vproductos";
+        $stmt_total = $conexion->query($total_query);
+        $total_registros = $stmt_total->fetchColumn();
+        
+        $total_paginas = ceil($total_registros / $productos_por_pagina);
+        if ($total_paginas < 1) {
+            $total_paginas = 1;
+        }
+
+        // 2. Consulta paginada con LIMIT y OFFSET
+        // Se recomienda agregar un ORDER BY (por ejemplo por id) para mantener un orden consistente al cambiar de página
+        $productos_query = "SELECT * FROM vproductos LIMIT :limit OFFSET :offset";
+        $stmt = $conexion->prepare($productos_query);
+        
+        // Es fundamental usar PDO::PARAM_INT para que LIMIT y OFFSET se interpreten como enteros y no cadenas de texto
+        $stmt->bindValue(':limit', $productos_por_pagina, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        
+        $stmt->execute();
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     } catch (PDOException $e) {
         error_log("Error al ejecutar la consulta de productos: " . $e->getMessage());
-        // En producción, podrías redirigir o mostrar un mensaje más amigable
         echo "Ha ocurrido un error al cargar los productos. Por favor, inténtalo más tarde.";
-        $productos = []; // Asegurarnos de que $productos esté definido incluso en caso de error
+        $productos = [];
     }
 } else {
     error_log("Error en la conexión a la base de datos.");
     echo "No se pudo conectar a la base de datos. Por favor, verifica la configuración.";
-    $productos = []; // Asegurarnos de que $productos esté definido incluso si no hay conexión
+    $productos = [];
 }
+
 
 // Mensajes de sesión (éxito o error)
 $mensaje_sesion = '';
@@ -80,49 +113,52 @@ if (isset($mensaje_sesion) && !empty($mensaje_sesion)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="fonts.css">
     <link rel="stylesheet" href="estilos/estilos1.css">
-
 <style>
 /* =================================================== */
 /* === INICIO: BLOQUE DE ESTILOS CORREGIDO Y COMPLETO === */
 /* =================================================== */
 
-/* 1. CORRECCIÓN PRINCIPAL UNIVERSAL: Box-sizing para evitar desbordamiento por padding */
-* {
+/* 1. Box-sizing universal para evitar desbordamiento por padding/borders */
+*, *::before, *::after {
     box-sizing: border-box; 
 }
-/* Estilos generales */
-body {
-    font-family: sans-serif;
+
+/* Estilos generales fluídos */
+html, body {
+    width: 100%;
     margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* Evita scroll horizontal no deseado a nivel de ventana global */
+    font-family: sans-serif;
     line-height: 1.6;
     background-color: #f8f8f8;
     color: #333;
-    /* 2. SOLUCIÓN DE EMERGENCIA: Ocultar scroll horizontal */
-    overflow-x: hidden; 
 }
 
-/* Encabezado */
+/* Encabezado adaptable */
 header {
     background-color: lawngreen;
-    padding: 10px;
+    padding: 10px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap; /* Permite que el menú baje si la pantalla se hace muy pequeña */
+    width: 100%;
 }
 
 #titulo {
     color: royalblue;
     text-align: left;
     padding: 5px;
-    font-size: 30px;
-    white-space: nowrap; /* Evita que el texto se divida */
+    font-size: clamp(20px, 4vw, 30px); /* Tamaño de texto dinámico según la ventana */
 }
 
 .logo img {
-    max-width: 200px;
-    max-height: 130px;
+    max-width: 100%;
     height: auto;
+    max-height: 100px;
 }
+
 /* Navegación */
 nav {
     display: flex;
@@ -135,10 +171,11 @@ nav ul {
     margin: 0;
     padding: 0;
     display: flex;
+    flex-wrap: wrap;
 }
 
 nav li {
-    margin-left: 20px;
+    margin-left: 15px;
 }
 
 nav a {
@@ -152,7 +189,7 @@ nav a:hover {
     color: #007bff;
 }
 
-/* Botón de hamburguesa */
+/* Botón de menú hamburguesa */
 .menu-toggle {
     display: none;
     background: none;
@@ -184,33 +221,48 @@ nav a:hover {
 
 /* Contenido principal */
 main {
-    padding: 20px;
+    padding: 20px 10px;
     background-color: lightblue;
+    width: 100%;
 }
 
+/* Contenedor principal para colocar buscador y mapa lado a lado */
+.search-map-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 15px;
+    flex-wrap: wrap; /* Mantiene responsividad en celulares */
+}
+
+/* Ajustes del buscador */
+.search-container {
+    flex: 1;
+    min-width: 300px;
+    margin: 0;
+}
+
+/* Ajustes de la sección de la ubicación */
 #ubicacion-tienda {
-    margin-bottom: 20px;
+    margin-bottom: 0; /* Remueve margen inferior previo */
     text-align: center;
-}
-
-.ubicacion {
-    text-align: left;
-}
-
-#ubicacion-tienda h2 {
-    margin-bottom: 10px;
+    width: 320px; /* Ancho fijo ajustado para el mapa compacto */
 }
 
 #ubicacion-tienda .map-container iframe {
-    width: 95%;
-    max-width: 800px;
-    height: 100px;
+    width: 100%;
+    height: 120px; /* Altura compacta para alinearse bien con la barra */
     display: block;
-    margin: 10px auto;
+    margin: 0 auto;
     border: 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
-/*Tooltip text*/
 
+/* Tooltip text */
 .tooltip {
     position: relative;
     display: inline-block;
@@ -243,82 +295,133 @@ main {
 #productos {
     text-align: center;
     padding: 20px 0;
+    width: 100%;
 }
 
 #productos h2 {
     margin-bottom: 15px;
 }
 
-/* Contenedor de la cuadrícula de productos */
+/* =================================================== */
+/* === CARRUSEL HORIZONTAL RESPONSIVE === */
+/* =================================================== */
+/* Cuadrícula adaptable para escritorio y móviles */
 .products-grid {
     display: grid;
-    /* Bajamos el mínimo a 200px para que entren más por fila */
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-    gap: 15px; /* Reducimos un poco el espacio entre tarjetas para ganar lugar */
-    max-width: 1200px; /* Ampliamos el ancho máximo permitido del contenedor */
+    /* Ajusta automáticamente las columnas según el ancho de la pantalla */
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 10px;
+    padding: 20px 10px;
 }
 
-/* Estilos para cada producto en la cuadrícula */
+/* Reducción de margen en móviles */
+@media (max-width: 480px) {
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+}
+
+/* Estilos de la barra de paginación */
+.paginacion-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 30px 0;
+    flex-wrap: wrap;
+}
+
+.btn-pagina {
+    padding: 8px 14px;
+    background-color: #ffffff;
+    border: 1px solid #007bff;
+    color: #007bff;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-pagina:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-pagina.activa {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-pagina.desactivado {
+    color: #ccc;
+    border-color: #ccc;
+    pointer-events: none;
+    background-color: #f8f9fa;
+}
+
+/* Estilo personalizado de la barra de desplazamiento del carrusel */
+.products-grid::-webkit-scrollbar {
+    height: 8px;
+}
+.products-grid::-webkit-scrollbar-thumb {
+    background-color: #007bff;
+    border-radius: 10px;
+}
+.products-grid::-webkit-scrollbar-track {
+    background-color: rgba(0,0,0,0.05);
+}
+
+/* Tarjetas de productos ajustables */
 .products-grid .product {
+   /* flex: 0 0 220px; /* Tamaño base cómodo para desktop y laptop */
+    max-width: 80vw; /* En pantallas diminutas no sobrepasa el ancho visible */
     background-color: greenyellow;
     border: 1px solid #ccc;
     border-radius: 8px;
-    padding: 10px; /* Reducción de padding interno */
+    padding: 10px;
     text-align: center;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    font-size: 0.9rem; /* Texto ligeramente más pequeño para ahorrar espacio */
-transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
-                box-shadow 0.3s ease;
+    font-size: 0.9rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
     position: relative;
     z-index: 1;
-
 }
-/* 2. El efecto Zoom cuando pasas el ratón (Hover) */
+
 .products-grid .product:hover {
-    transform: scale(1.05); /* Zoom del 5% */
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2); /* Sombra más profunda */
-    z-index: 10; /* Se asegura de estar por encima de las otras */
-    background-color: #f1ffcc; /* Un ligero cambio de tono opcional */
+    transform: translateY(-4px); /* Animación vertical más limpia para no romper scroll */
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 10;
+    background-color: #f1ffcc;
 }
 
-/* 3. Animación para la imagen dentro de la tarjeta */
-.products-grid .product:hover img {
-    transform: scale(1.1); /* La imagen crece un poquito más que la tarjeta */
-}
-
-/*.products-grid .product img {
-    transition: transform 0.5s ease;
-}
-*/
-/* Asegurar que las imágenes no deformen la tarjeta */
 .products-grid .product img {
+    max-width: 100%;
     width: 100%;
-    height: 140px; /* Altura fija para uniformidad */
+    height: 130px;
     object-fit: contain;
     margin-bottom: 5px;
-    transition: transform 0.5s ease;
 }
 
 .products-grid .product h3 {
     margin-top: 0;
     margin-bottom: 5px;
     color: #333;
-    font-size: 1.1em;
+    font-size: 1em;
 }
 
 .products-grid .product .product-description {
     color: #000;
     margin-bottom: 10px;
     text-align: left;
-    font-size: 0.9em;
-    line-height: 1.4;
-    background-color: transparent;
-    padding: 0;
+    font-size: 0.85em;
+    line-height: 1.3;
     flex-grow: 1;
 }
 
@@ -326,108 +429,130 @@ transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     margin-bottom: 8px;
     font-weight: bold;
     color: #555;
-    font-size: 1em;
+    font-size: 0.95em;
 }
 
-.products-grid .product button[type="submit"] {
-    background-color: #6B8E23;
-    color: #fff;
-    border: none;
-    padding: 8px 15px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 0.9em;
-    transition: background-color 0.3s ease;
-    margin-top: 10px;
-}
-
-.products-grid .product button[type="submit"]:hover {
-    background-color: #556B2F;
-}
-
-.products-grid .product button.btn-agregado {
-    background-color: #28a745;
-    color: white;
-    font-weight: bold;
-}
-
-.products-grid .product button.btn-agregado:hover {
-    background-color: #218838;
-}
-/* --- INICIO: Estilos para los controles de cantidad personalizados --- */
-.quantity-input {
-    -webkit-appearance: none;
-    -moz-appearance: textfield;
-    appearance: textfield;
-    margin: 0;
-    text-align: center;
-    padding: 8px 5px;
-    width: 50px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    pointer-events: auto;
-    position: relative;
-    z-index: 11;
-}
-
-.quantity-input::-webkit-inner-spin-button,
-.quantity-input::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-/* Contenedor de los botones y el input */
+/* Controles de cantidad */
 .quantity-control {
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 10px;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
-    pointer-events: auto;
-    position: relative;
-    z-index: 10;
+    width: 100%;
 }
 
-/* Estilos para los botones de + y - */
+.quantity-input {
+    -webkit-appearance: none;
+    appearance: textfield;
+    margin: 0;
+    text-align: center;
+    padding: 6px 4px;
+    width: 45px;
+    border: 1px solid #ccc;
+    border-radius: 0;
+}
+
 .quantity-btn {
     background-color: #007bff;
     color: white;
     border: none;
-    padding: 8px 12px;
+    padding: 6px 10px;
     cursor: pointer;
-    font-size: 1.2em;
-    line-height: 1;
+    font-size: 1.1em;
     border-radius: 4px;
     transition: background-color 0.3s ease;
-    width: 35px;
-    height: 35px;
+    width: 32px;
+    height: 32px;
     display: flex;
     justify-content: center;
     align-items: center;
-    pointer-events: auto;
+}
+
+.minus-btn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.plus-btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+.btn-añadir {
+    background-color: #ff9800;
+    color: white;
+    font-weight: bold;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.btn-agregado {
+    background-color: #28a745 !important;
+}
+
+.search-container {
+    background-color: #ffffff;
+    padding: 15px;
+    margin: 15px auto;
+    width: 90%;
+    max-width: 650px;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     position: relative;
-    z-index: 12;
+    z-index: 100; /* Le da prioridad al buscador completo sobre el contenido inferior */
 }
 
-.quantity-btn:hover {
-    background-color: #0056b3;
+.search-form-ajax {
+    display: flex;
+    align-items: center;
+    width: 100%;
 }
 
-.minus-btn {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-    margin-right: -1px;
+.input-group {
+    flex-grow: 1;
+    position: relative; /* Define el punto de referencia para .sugerencias-box */
+    width: 100%;
 }
 
-.plus-btn {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    margin-left: -1px;
+/* Lista desplegable flotante de sugerencias */
+.sugerencias-box {
+    position: absolute;
+    top: 100%;             /* Se ubica justo debajo del campo de texto */
+    left: 0;
+    width: 100%;
+    
+    /* PROPIEDAD CLAVE: Asigna un orden alto para elevarlo por encima de las tarjetas */
+    z-index: 9999;
+    
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    max-height: 280px;     /* Permite scroll si la lista es muy larga */
+    overflow-y: auto;
+    margin-top: 5px;
 }
-/* --- FIN: Estilos para los controles de cantidad personalizados --- */
 
+#buscador {
+    width: 100%;
+    padding: 10px 15px 10px 40px;
+    font-size: 0.95rem;
+    border: 2px solid #e0e0e0;
+    border-right: none;
+    border-radius: 25px 0 0 25px;
+    outline: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%23007bff" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+    background-repeat: no-repeat;
+    background-position: 12px center;
+}
+
+.btn-search {
+    background-color: #007bff;
+    color: white;
+    border: 2px solid #007bff;
+    padding: 10px 18px;
+    font-weight: bold;
+    border-radius: 0 25px 25px 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
 
 /* Pie de página */
 footer {
@@ -436,200 +561,46 @@ footer {
     text-align: center;
     padding: 15px;
     font-size: 0.9em;
+    width: 100%;
 }
 
 .siderbar {
-    /* Centrado del div.siderbar en la página */
-    width: fit-content;    /* El ancho se ajusta al contenido. También puedes usar un ancho fijo como 300px; */
-    margin: 0 auto;        /* ¡Esto lo centra horizontalmente! */
-
-    /* Configuración Flexbox para alinear el h2 y el ul DENTRO del siderbar */
-    display: flex;           /* Hacemos que el .siderbar sea un contenedor flex */
-    flex-direction: column; /* Apilamos el h2 y el ul verticalmente */
-    align-items: center;    /* Centramos el h2 y el ul horizontalmente dentro del .siderbar */
-
-    /* Estilos visuales opcionales para el .siderbar */
-    padding: 15px;
-    /*background-color: #f0f0f0; /* Color de fondo para el sidebar */
-    border-radius: 10px;
-    box-shadow: 0 10px 12px rgba(0,0,0,0.1);
-}
-
-.siderbar h2 {
-    margin-bottom: 15px; /* Espacio debajo del título */
-    color: #333;
-}
-
-.siderbar ul {
-    list-style: none; /* Elimina los puntos de la lista */
-    padding: 0;        /* Elimina el relleno predeterminado */
-    margin: 0;         /* Elimina el margen predeterminado */
-
-    display: flex;           /* Activa el modelo de caja flexible para los iconos */
-    flex-direction: row;     /* Alinea los iconos en fila (horizontal) */
-    align-items: center;     /* Centra verticalmente los iconos si tuvieran diferentes alturas */
-    background-color: lightblue; /* El color de fondo para la fila de iconos */
-}
-
-.siderbar ul li {
-    margin-right: 10px; /* Espacio entre los iconos */
-}
-
-.siderbar ul li:last-child {
-    margin-right: 0; /* Elimina el margen derecho del último icono */
-}
-
-
-.sociales li{
-    display: inline-block;
-}
-
-.sociales a{
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     padding: 10px;
 }
 
-
-/******************************/
-
+.siderbar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
 
 .icon {
     color: white;
     text-decoration: none;
-    padding: .7rem;
+    padding: .6rem;
     display: flex;
-    transition: all .5s;
 }
 
-.icon-facebook {
-    background: #2E406E;
-}
-
-.icon-twitter {
-    background: #339DC5;
-}
-
-.icon-youtube {
-    background: #E83028;
-}
-
-.icon-instagram {
-    background: #3F60A5;
-}
-
-.icon:first-child {
-    border-radius: 1rem 0 0 0;
-}
-
-.icon:last-child {
-    border-radius: 0 0 0 1rem;
-}
-
-.icon:hover {
-    padding-right: 3rem;
-    border-radius: 1rem 0 0 1rem;
-    box-shadow: 0 0 .5rem rgba(0, 0, 0, 0.42);
-}
-
-
-/*****************************/
-/*.icon-facebook { background: #2E406E; }
+.icon-facebook { background: #2E406E; }
 .icon-twitter { background: #339DC5; }
 .icon-youtube { background: #E83028; }
 .icon-instagram { background: #3F60A5; }
 
-.icon:first-child { border-radius: 1rem 0 0 0; }
-.icon:last-child { border-radius: 0 0 0 1rem; }
-
-.icon:hover {
-    padding-right: 3rem;
-    border-radius: 1rem 0 0 1rem;
-    box-shadow: 0 0 .5rem rgba(0, 0, 0, 0.42);
-}
-
-
-.icon {
-    display: block; 
-    width: 40px; 
-    height: 40px;
-    line-height: 40px; 
-    text-align: center;
-    color: #fff;
-    background-size: 60%;
-    background-repeat: no-repeat;
-    background-position: center;
-    border-radius: 4px;
-    padding-right: 0; 
-    transition: all 0.3s ease;
-}*/
-
-/*.search-form {
-    display: flex;
-    margin-left: 20px;
-    width: fit-content; 
-    margin-right: auto;
-    margin-left: auto;
-}*/
-
-
-.search-form {
-        margin-left: auto; /* Centrar */
-        margin-right: auto; /* Centrar */
-        margin-top: 10px;
-        width: 90%; /* Ajuste de ancho para móviles */
-        justify-content: center;
-        padding: 0; /* Quita el padding para que no se sume al ancho */
-    }
-
-
-.search-form input[type="text"] {
-    /* El padding izquierdo es clave para dejar espacio al icono */
-    padding: 8px; /* Padding base */
-    padding-left: 35px; /* Ajuste para la lupa */
-    border: 1px solid #ccc;
-    border-radius: 5px 0 0 5px;
-    font-size: 1em;
-    /* Implementación de la Lupa con SVG */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="gray" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
-    background-repeat: no-repeat;
-    background-position: 8px center; /* Posiciona el icono a 8px desde la izquierda */
-    background-size: 20px 20px; /* Tamaño del icono */
-}
-
-.search-form button[type="submit"] {
-    /* Estilos para el botón de Búsqueda */
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 0 5px 5px 0;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s ease;
-}
-
-.search-form button[type="submit"]:hover {
-    background-color: #0056b3;
-}
-
-
-
-/* === INICIO: MEDIA QUERY PARA MÓVILES (max-width: 768px) === */
+/* === MEDIA QUERIES PARA PANTALLAS PEQUEÑAS / VENTANA MINIMIZADA === */
 @media (max-width: 768px) {
-    /* Menú de navegación */
     nav ul {
         display: none;
         flex-direction: column;
-        position: absolute;
-        top: 60px;
-        left: 0;
         width: 100%;
-        background-color: transparent;
-        z-index: 100;
-    }
-
-    nav li {
-        margin: 10px 0;
-        text-align: center;
     }
 
     .menu-toggle {
@@ -640,182 +611,30 @@ footer {
         display: flex !important; 
     }
 
-    #titulo {
-        font-size: 24px;
-    }
-
-    /* 3. CORRECCIÓN CRUCIAL: Forzar una sola columna de productos para que no desborden */
-    .products-grid {
-        grid-template-columns: 1fr; /* Ocupa el 100% del ancho */
-        padding: 0 5px;
-    }
-    
-    /* ANULAR el efecto hover de los íconos sociales que podría causar desbordamiento */
-    .icon:hover {
-        padding-right: .7rem; /* Vuelve al padding base */
-        border-radius: 4px; 
-        box-shadow: none;
-    }
-    
-    /* Formulario de búsqueda en móviles (Ajustado) */
-/*    .search-form {
-        margin-left: auto; 
-        margin-right: auto;
-        margin-top: 10px;
-        width: 90%;
-        justify-content: center;
-        padding: 0; 
-    }
-*//*    .search-form {
-        display:flex;
-        margin-left: 20px;
-        width:fit-content;
-    }*/
-/* Estilos para el formulario de búsqueda (Alineado a la izquierda para escritorio) */
-.search-form {
-    display: flex;
-    margin-left: 20px;
-    max-width: 900px; /* Limita el ancho del formulario, si es necesario */
-    padding: 0 20px; /* Usa el padding para el espaciado izquierdo/derecho */
-    margin: 0; /* Elimina cualquier margen residual */
-    justify-content: flex-start; /* Fuerza la alineación de sus contenidos a la izquierda */
-}
-
-
-
-    .search-form input[type="text"] {
-        flex-grow: 1;
-        max-width: 70%; /* Le da más espacio al input */
-        border-radius: 5px 0 0 5px;
-        padding-left: 35px; /* Mantiene la lupa */
-    }
-
-    .search-form button[type="submit"] {
-        padding: 8px 12px; /* Se ajusta al padding del input */
-        border-radius: 0 5px 5px 0;
-        margin-left: 0; 
+    .products-grid .product {
+        flex: 0 0 180px; /* Reducción de ancho de tarjetas para pantallas más pequeñas */
     }
 }
 
-/* === ===*/
-/* === MAQUILLAJE DE LA SECCIÓN DE BÚSQUEDA === */
-.search-container {
-    background-color: #ffffff;
-    padding: 30px 20px;
-    margin: 20px auto;
-    max-width: 700px;
-    border-radius: 50px; /* Forma de píldora moderna */
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-.search-form-ajax {
-    display: flex;
-    align-items: center;
-    gap: 0; /* Unimos el input y el botón */
-}
-
-.input-group {
-    flex-grow: 1;
-    position: relative;
-}
-
-#buscador {
-    width: 100%;
-    padding: 12px 20px 12px 45px; /* Espacio para el icono de lupa */
-    font-size: 1rem;
-    border: 2px solid #e0e0e0;
-    border-right: none; /* Quitamos el borde derecho para unir al botón */
-    border-radius: 30px 0 0 30px; /* Redondeado solo a la izquierda */
-    outline: none;
-    transition: border-color 0.3s ease;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
-    background-repeat: no-repeat;
-    background-position: 15px center;
-}
-
-#buscador:focus {
-    border-color: #007bff;
-}
-
-.btn-search {
-    background-color: #007bff;
-    color: white;
-    border: 2px solid #007bff;
-    padding: 12px 25px;
-    font-weight: bold;
-    border-radius: 0 30px 30px 0; /* Redondeado solo a la derecha */
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 1rem;
-}
-
-.btn-search:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
-}
-
-/* Sugerencias estilo flotante */
-.sugerencias-box {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 0 0 15px 15px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    z-index: 1000;
-    max-height: 250px;
-    overflow-y: auto;
-}
-/* Estilo para las sugerencias con imágenes */
-.sugerencia-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-}
-
-.sugerencia-item:hover {
-    background-color: #f0f7ff;
-}
-/* Ajuste móvil */
 @media (max-width: 480px) {
+    .products-grid .product {
+        flex: 0 0 160px;
+    }
+    
     .search-container {
         border-radius: 15px;
-        padding: 15px;
+        padding: 10px;
     }
+
     #buscador {
-        padding-left: 35px;
-        font-size: 0.9rem;
+        border-radius: 15px 0 0 15px;
     }
+
     .btn-search {
-        padding: 12px 15px;
-        font-size: 0.9rem;
+        border-radius: 0 15px 15px 0;
+        padding: 10px 12px;
     }
 }
-
-/* AGREGAR ESTA CLASE PARA EL TÍTULO */
-.titulo-tienda {
-    font-weight: bold; 
-    font-size: 1.2rem;
-    transition: opacity 0.3s ease; /* Para una transición suave */
-}
-
-/* MODIFICACIÓN EN LA MEDIA QUERY EXISTENTE (al final de tu bloque <style>) */
-@media (max-width: 768px) {
-    /* ... otros estilos responsivos que ya tenías ... */
-
-    .titulo-tienda {
-        opacity: 0;           /* Lo hace transparente */
-        pointer-events: none; /* Evita que se pueda hacer clic si estorba */
-        /* Si prefieres que desaparezca del todo para ganar espacio, usa: display: none; */
-    }
-}
-/* === ===*/
-
-/* === FIN: MEDIA QUERY === */
 
 /* =================================================== */
 /* === FIN: BLOQUE DE ESTILOS CORREGIDO Y COMPLETO === */
@@ -826,6 +645,7 @@ footer {
         <div class="logo">
             <img src="imagenes/klins.jpg" alt="Logo de Klins">
         </div>
+        
         <nav>
             <button class="menu-toggle">
                 <span class="bar"></span>
@@ -847,19 +667,17 @@ footer {
              <?php //endif; ?>
              </ul>
         </nav>
-
     </header>
 <?php
 if (isset($mensaje_sesion) && !empty($mensaje_sesion)) {
     echo '<div style="color: green; background-color: #e0ffe0; padding: 10px; margin-bottom: 10px;">' . htmlspecialchars($mensaje_sesion) . '</div>';
 }
-if (isset($error_sesion) && !empty($error_sesion)) {
-    echo '<div style="color: red; background-color: #ffe0e0; padding: 10px; margin-bottom: 10px;">' . htmlspecialchars($error_sesion) . '</div>';
-}
+// if (isset($error_sesion) && !empty($error_sesion)) {
+//     echo '<div style="color: red; background-color: #ffe0e0; padding: 10px; margin-bottom: 10px;">' . htmlspecialchars($error_sesion) . '</div>';
+// }
 ?>  
 <body>
-<nav style="background-color: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
-        
+    <nav style="background-color: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
         <div class="titulo-tienda">
             🧼 Mi Tienda de Limpieza
         </div>
@@ -873,106 +691,153 @@ if (isset($error_sesion) && !empty($error_sesion)) {
                 <a href="logout.php" style="background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 0.9rem;">Cerrar Sesión</a>
             <?php else: ?>
                 <span>Invitado</span>
-                <a href="login.php" style="background-color: #007bff; color: white; padding: 5px 15px; border-radius: 4px; text-decoration: none; margin-left: 10px;">Iniciar Sesión</a>
+                <a href="login.php" class="btn-login" style="background-color: #007bff; color: white; padding: 5px 15px; border-radius: 4px; text-decoration: none; margin-left: 10px; white-space: nowrap;">Iniciar Sesión</a>
             <?php endif; ?>
         </div>
     </nav>
 
-<div style="max-width: 800px; margin: 20px auto; text-align: center;">
-    <?php
-    if (isset($_SESSION['mensaje'])) {
-        echo '<div style="color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 4px;">' . htmlspecialchars($_SESSION['mensaje']) . '</div>';
-        unset($_SESSION['mensaje']);
-    }
-    if (isset($_SESSION['error_mensaje'])) {
-        echo '<div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px;">' . htmlspecialchars($_SESSION['error_mensaje']) . '</div>';
-        unset($_SESSION['error_mensaje']);
-    }
-    ?>
-</div>
+    <!-- Contenedor principal de la tienda -->
+    <main class="contenedor-principal">
 
-<main>
-<div class="search-container">
-    <form action="buscar_producto.php" method="post" class="search-form-ajax">
-        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-        
-        <div class="input-group">
-            <input type="text" name="q" id="buscador" autocomplete="off" placeholder="¿Qué producto buscas hoy?">
-            <div id="lista-sugerencias" class="sugerencias-box"></div>
-        </div>
-        
-        <button type="submit" class="btn-search">
-            <i class="fas fa-search"></i> Buscar
-        </button>
-    </form>
-</div>
-
-
-<section id="ubicacion-tienda">
-    <div class="map-container tooltip">
-        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3274.725044668741!2d-66.92395712591662!3d10.458067164987193!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8c2a5f5f2d5e7889%3A0xd128e1939ca7bdf9!2sCalle%2015%20Bis%2C%20Caracas%201090%2C%20Distrito%20Capital!5e1!3m2!1ses!2sve!4v1744317707839!5m2!1ses!2sve" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        <span class="tooltiptext">¡Haz clic en el mapa para ubicar nuestra Fábrica!</span>
-    </div>
-</section>
-<section id="productos">
-    <h2 style="text-align: center; margin: 20px 0;">Nuestros Productos</h2>
-    <div class="products-grid">
-        <?php if (!empty($productos)): ?>
-            <?php foreach ($productos as $producto): ?>
-                <div class="product">
-                    <form action="procesar_carrito1.php" method="post">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                        <input type="hidden" name="id" value="<?php echo htmlspecialchars($producto['id']); ?>">
-                        
-                        <img src="ver_imagen.php?id=<?php echo $producto['id']; ?>" 
-                             alt="<?php echo htmlspecialchars($producto['producto_nombre']); ?>" 
-                             loading="lazy">
-
-                        <h3 style="font-size: 1rem; margin: 5px 0;"><?php echo htmlspecialchars($producto['producto_nombre']); ?></h3>
-                        
-                        <p class="product-description" style="font-size: 0.8rem; height: 40px; overflow: hidden;">
-                            <?php echo htmlspecialchars($producto['producto_descripcion']); ?>
-                        </p>
-                        
-                        <p><strong>$<?php echo number_format($producto['precio'], 2); ?></strong></p>
-                        
-                        <div class="quantity-control" style="transform: scale(0.9);">
-                            <button type="button" class="quantity-btn minus-btn" data-product-id="<?php echo $producto['id']; ?>">-</button>
-                            <input type="number" name="cantidad" id="cantidad_<?php echo $producto['id']; ?>" value="1" min="1" class="quantity-input">
-                            <button type="button" class="quantity-btn plus-btn" data-product-id="<?php echo $producto['id']; ?>">+</button>
-                        </div>
-
-                        <?php
-                        $agregado = (isset($producto_agregado_id) && $producto_agregado_id == $producto['id']);
-                        $txt = $agregado ? "¡Añadido!" : "Añadir 🛒";
-                        $css_btn = $agregado ? "btn-agregado" : "";
-                        ?>
-
-                        <button type="submit" name="agregar_carrito" class="<?php echo $css_btn; ?>" style="width: 100%; padding: 8px; font-size: 0.85rem;">
-                            <?php echo $txt; ?>
-                        </button>
-                    </form>
-                </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <p style="grid-column: 1/-1;">No se encontraron productos.</p>
+        <!-- BLOQUE DE ERROR AÑADIDO AQUÍ -->
+        <?php if (isset($_SESSION['error_mensaje'])): ?>
+            <div style="background-color: #ffcccc; color: #cc0000; padding: 12px; margin: 15px auto; max-width: 1200px; border-radius: 5px; font-weight: bold; text-align: center;">
+                <?php 
+                    echo htmlspecialchars($_SESSION['error_mensaje']); 
+                    unset($_SESSION['error_mensaje']); 
+                ?>
+            </div>
         <?php endif; ?>
+
+<!-- Contenedor flexible que agrupa buscador y mapa -->
+<div class="search-map-wrapper">
+    
+    <!-- 1. Buscador -->
+    <div class="search-container">
+        <form action="buscar_producto.php" method="post" class="search-form-ajax">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">            
+            <div class="input-group">
+                <input type="text" name="q" id="buscador" autocomplete="off" placeholder="¿Qué Producto buscas hoy?">
+                <div id="lista-sugerencias" class="sugerencias-box"></div>
+            </div>
+            
+            <button type="submit" class="btn-search">
+                <i class="fas fa-search"></i> BUSCAR
+            </button>
+        </form>
     </div>
-</section>
-<div class="siderbar">
-    <ul>
-    <h2>Síguenos en:</h2>
-        <li><a href="https://www.facebook.com" class="icon icon-facebook" target="_blank"></a></li>
-        <li><a href="https://twitter.com/home" class="icon icon-twitter" target="_blank"></a></li>
-        <li><a href="https://www.youtube.com" class="icon icon-youtube" target="_blank"></a></li>
-        <li><a href="https://www.instagram.com" class="icon icon-instagram" target="_blank"></a></li>
-    </ul>
+
+    <!-- 2. Ubicación / Mapa a la derecha -->
+    <section id="ubicacion-tienda">
+        <div class="map-container tooltip">
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3274.7020776247236!2d-66.9170220259166!3d10.460243964948145!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8c2a5f574f2967c5%3A0x82afab9146845adc!2sHospital%20Materno%20Infantil%20de%20El%20Valle!5e1!3m2!1ses!2sve!4v1780067531034!5m2!1ses!2sve" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <span class="tooltiptext">¡Haz clic en el mapa para ubicar nuestra Fábrica!</span>
+        </div>
+    </section>
+
 </div>
-</main>
+        <!-- Cuadrícula de productos -->
+        <section id="productos">
+            <h2 style="text-align: center; margin: 20px 0;">Nuestros Productos</h2>
+
+            <div class="products-grid">
+                <?php if (!empty($productos)): ?>
+                    <?php foreach ($productos as $producto): ?>
+                        <div class="product">
+                            <form action="procesar_carrito1.php" method="post">
+                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($producto['id']); ?>">
+                                
+                                <img src="ver_imagen.php?id=<?php echo $producto['id']; ?>" 
+                                     alt="<?php echo htmlspecialchars($producto['producto_nombre']); ?>" 
+                                     loading="lazy">
+
+                                <h3 style="font-size: 1rem; margin: 5px 0;"><?php echo htmlspecialchars($producto['producto_nombre']); ?></h3>
+                                
+                                <p class="product-description" style="font-size: 0.8rem; height: 40px; overflow-y: auto; border: 1px solid #eee; padding: 2px;">
+                                    <?php echo htmlspecialchars($producto['producto_descripcion']); ?>
+                                </p>
+                                
+                                <p><strong>$<?php echo number_format($producto['precio'], 2); ?></strong></p>
+                                
+                                <div class="quantity-control" style="transform: scale(0.9); margin-bottom: 10px;">
+                                    <button type="button" class="quantity-btn minus-btn" data-product-id="<?php echo $producto['id']; ?>">-</button>
+                                    <input type="number" name="cantidad" id="cantidad_<?php echo $producto['id']; ?>" value="1" min="1" class="quantity-input" style="width: 50px; text-align: center;">
+                                    <button type="button" class="quantity-btn plus-btn" data-product-id="<?php echo $producto['id']; ?>">+</button>
+                                    <span class="unit-label" style="font-weight: bold; margin-left: 5px; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">
+                                        <?php 
+                                            echo htmlspecialchars($producto['stock']); 
+                                            if (isset($producto['estado_nombre']) && strtolower($producto['estado_nombre']) == 'liquido') {
+                                                echo " Lts";
+                                            } else {
+                                                echo " Unid";
+                                            }
+                                        ?>
+                                    </span>
+                                </div>
+
+                                <?php
+                                $agregado = (isset($producto_agregado_id) && $producto_agregado_id == $producto['id']);
+                                $carrito_icon = '<span class="carrito-icono" style="font-size: 1.5rem;">🛒</span>';
+                                $txt = $agregado ? "¡Añadido! ✅" : "Añadir " . $carrito_icon;
+                                $css_btn = $agregado ? "btn-agregado" : "btn-añadir";
+                                $color_fondo = $agregado ? "#28a745" : "#ff9800"; 
+                                ?>
+
+                                <button type="submit" name="agregar_carrito" class="<?php echo $css_btn; ?>" 
+                                        style="width: 100%; padding: 12px; font-size: 1rem; background-color: <?php echo $color_fondo; ?>; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                                    <?php echo $txt; ?>
+                                </button>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p style="grid-column: 1/-1;">No se encontraron productos.</p>
+                <?php endif; ?>
+            </div>
+
+            <!-- BARRA DE PAGINACIÓN -->
+            <?php if ($total_paginas > 1): ?>
+            <div class="paginacion-container">
+                <?php if ($pagina_actual > 1): ?>
+                    <a href="?pagina=<?php echo $pagina_actual - 1; ?>" class="btn-pagina">&laquo; Anterior</a>
+                <?php else: ?>
+                    <span class="btn-pagina desactivado">&laquo; Anterior</span>
+                <?php endif; ?>
+
+                <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                    <?php if ($i == $pagina_actual): ?>
+                        <span class="btn-pagina activa"><?php echo $i; ?></span>
+                    <?php else: ?>
+                        <a href="?pagina=<?php echo $i; ?>" class="btn-pagina"><?php echo $i; ?></a>
+                    <?php endif; ?>
+                <?php endfor; ?>
+
+                <?php if ($pagina_actual < $total_paginas): ?>
+                    <a href="?pagina=<?php echo $pagina_actual + 1; ?>" class="btn-pagina">Siguiente &raquo;</a>
+                <?php else: ?>
+                    <span class="btn-pagina desactivado">Siguiente &raquo;</span>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+        </section>
+
+        <div class="siderbar">
+            <ul>
+                <h2>Síguenos en:</h2>
+                <li><a href="https://www.facebook.com" class="icon icon-facebook" target="_blank"></a></li>
+                <li><a href="https://twitter.com/home" class="icon icon-twitter" target="_blank"></a></li>
+                <li><a href="https://www.youtube.com" class="icon icon-youtube" target="_blank"></a></li>
+                <li><a href="https://www.instagram.com" class="icon icon-instagram" target="_blank"></a></li>
+            </ul>
+        </div>
+    </main>
     <footer>
         <p>© 2023 Tienda de Productos de Limpieza</p>
     </footer>
 <script>
+
 document.addEventListener("DOMContentLoaded", function () {
     // === SECCIÓN 1: MENÚ Y CANTIDADES ===
     const menuToggle = document.querySelector('.menu-toggle');

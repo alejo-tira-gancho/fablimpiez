@@ -1,31 +1,43 @@
 <?php
-ob_start(); // 💡 Truco: Inicia el almacenamiento en búfer de salida
-session_start();
+ob_start();
 
-// 🔄 CAMBIO: Simplifica la validación inicial. Si no hay ID, fuera.
+// 1. Inicialización segura de la sesión
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    if (!isset($_POST['csrf_token']) || !isset($_SESSION['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $_SESSION['error_mensaje'] = "Error de seguridad: Sesión inválida.";
+        header("Location: limpieza.php");
+        exit();
+    }
+
+    // ... lógica para añadir producto al carrito ...
+}
+
+
+}
+
+// 2. Control de acceso: Verificar si el usuario inició sesión
 if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario_id'])) {
     $_SESSION['error_mensaje'] = "Debes iniciar sesión para poder comprar.";
     header("Location: login.php");
     exit(); 
-} 
-
-// 1. Verificación de sesión
-if (!isset($_SESSION['usuario_id'])) {
-    $_SESSION['error_mensaje'] = "Debes iniciar sesión para poder comprar.";
-    
-    // Forzamos la redirección
-    header("Location: login.php");
-    exit(); 
 }
 
-// 2. Validación del Token CSRF
+// 3. Validación segura del Token CSRF con hash_equals
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    $token_enviado = $_POST['csrf_token'] ?? '';
+    $token_sesion  = $_SESSION['csrf_token'] ?? '';
+
+    if (empty($token_enviado) || empty($token_sesion) || !hash_equals($token_sesion, $token_enviado)) {
         $_SESSION['error_mensaje'] = "Error de seguridad: Sesión inválida.";
         header('Location: limpieza.php');
         exit();
     }
 }
+
 require_once 'conexion.php';
 $pdo = connectToDb();
 if (!$pdo) {
@@ -40,21 +52,14 @@ if (isset($_POST['agregar_carrito'])) {
     $cantidad = filter_input(INPUT_POST, 'cantidad', FILTER_VALIDATE_INT);
     $usuario_id = $_SESSION['usuario_id'] ?? null;
 
-    // 2. Validación de Sesión
-    if (!$usuario_id) {
-        $_SESSION['error_mensaje'] = "Necesitas iniciar SESIÓN para añadir productos al carrito.";
-        header('Location: login.php');
-        exit();
-    } // <-- Cierre correcto
-
-    // 3. Validación de Datos (RESOLUCIÓN DE LA ANOMALÍA)
+    // 2. Validación de Datos
     if ($producto_id === false || $producto_id === null || $cantidad === false || $cantidad === null || $cantidad <= 0) {
         $_SESSION['error_mensaje'] = "Datos de producto o cantidad inválidos.";
         header('Location: limpieza.php');
         exit();
-    } // <-- LLAVE DE CIERRE QUE FALTABA O ESTABA MAL PUESTA
+    }
 
-    // 4. Lógica de Negocio (Ahora está fuera de los IF de error)
+    // 3. Lógica de Negocio
     try {
         $pdo->beginTransaction();
 
@@ -122,7 +127,6 @@ if (isset($_POST['agregar_carrito'])) {
         exit();
     }
 } else {
-    // Si se intenta acceder al archivo sin el POST
     header('Location: limpieza.php');
     exit();
 }

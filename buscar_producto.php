@@ -1,47 +1,98 @@
 <?php
-require 'conexion.php';
-$conexion = connectToDb();
+session_start();
 
-if (!$conexion) {
-    die("No se pudo conectar a la base de datos.");
+require 'conexion.php';
+
+// Validar método POST y token CSRF
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $_SESSION['error_mensaje'] = "Error de seguridad: Sesión no válida.";
+        header("Location: limpieza.php");
+        exit();
+    }
+    
+    // Obtener la palabra clave por POST
+    $busqueda = isset($_POST['q']) ? trim($_POST['q']) : '';
+} else {
+    // Si intentan entrar directo escribiendo la URL sin enviar el formulario
+    header("Location: limpieza.php");
+    exit();
 }
 
-// 1. Configuración de Paginación
-$productosPorPagina = 1;
-$paginaActual = isset($_POST['pagina']) ? (int)$_POST['pagina'] : 1;
+// Si el token no existe en la sesión actual, se vuelve a generar
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// ... Continuar con la consulta SQL usando $busqueda ...
+
+
+function resaltar($texto, $busqueda) {
+    if (empty($busqueda)) return $texto;
+
+    $mapaVocales = [
+        'a' => '[aáàäâ]', 'e' => '[eéèëê]', 'i' => '[iíìïî]',
+        'o' => '[oóòöô]', 'u' => '[uúùüû]', 'n' => '[nñ]'
+    ];
+    
+    $busquedaBase = mb_strtolower($busqueda, 'UTF-8');
+    $patron = strtr($busquedaBase, $mapaVocales);
+    
+    return preg_replace('/(' . $patron . ')/iu', '<mark>$1</mark>', $texto);
+}
+
+$conexion = connectToDb();
+if (!$conexion) { die("Error de conexión."); }
+
+// 1. FORZAR CODIFICACIÓN UTF-8 EN POSTGRESQL (CRÍTICO PARA TILDES)
+$conexion->exec("SET NAMES 'utf8'");
+
+// 2. Configuración de Paginación
+$productosPorPagina = 4;
+$paginaActual = isset($_REQUEST['pagina']) ? (int)$_REQUEST['pagina'] : 1;
 if ($paginaActual < 1) $paginaActual = 1;
 $offset = ($paginaActual - 1) * $productosPorPagina;
 
-// 2. Captura de término de búsqueda
+// 3. CAPTURA Y SANITIZACIÓN SEGURA DE UTF-8
 $terminoOriginal = isset($_REQUEST['q']) ? trim($_REQUEST['q']) : '';
-$terminoBusqueda = '%' . mb_strtolower($terminoOriginal, 'UTF-8') . '%';
+
+// Aseguramos que la cadena sea UTF-8 válido sin romper las tildes
+if (!mb_check_encoding($terminoOriginal, 'UTF-8')) {
+    $terminoLimpio = mb_convert_encoding($terminoOriginal, 'UTF-8');
+} else {
+    $terminoLimpio = $terminoOriginal;
+}
 
 $resultados = [];
 $totalPaginas = 0;
 
-if (!empty($terminoOriginal)) {
+if (!empty($terminoLimpio)) {
     try {
-        // SQL de condición idéntico para ambas consultas
-        $condicionSQL = " WHERE LOWER(public.f_unaccent(producto_nombre)) LIKE LOWER(public.f_unaccent(:termino))
-                          OR LOWER(public.f_unaccent(producto_descripcion)) LIKE LOWER(public.f_unaccent(:termino))";
+        // Término formateado para coincidencia parcial
+        $terminoBusqueda = '%' . $terminoLimpio . '%';
 
-        // A. Contar total de registros encontrados
+        // Consulta usando la función f_unaccent de PostgreSQL
+        $condicionSQL = " WHERE public.f_unaccent(producto_nombre) ILIKE public.f_unaccent(:termino)
+                          OR public.f_unaccent(producto_descripcion) ILIKE public.f_unaccent(:termino)";
+
+        // A. Contar total
         $stmtCount = $conexion->prepare("SELECT COUNT(*) FROM vproductos" . $condicionSQL);
-        $stmtCount->bindParam(':termino', $terminoBusqueda, PDO::PARAM_STR);
+        $stmtCount->bindValue(':termino', $terminoBusqueda, PDO::PARAM_STR);
         $stmtCount->execute();
         $totalProductos = (int)$stmtCount->fetchColumn();
         $totalPaginas = ceil($totalProductos / $productosPorPagina);
 
-        // B. Obtener resultados de la página actual
-        $sql = "SELECT * FROM vproductos" . $condicionSQL . " LIMIT $productosPorPagina OFFSET $offset";
+        // B. Obtener resultados paginados
+        $sql = "SELECT * FROM vproductos" . $condicionSQL . " LIMIT :limit OFFSET :offset";
         $stmt = $conexion->prepare($sql);
-        $stmt->bindParam(':termino', $terminoBusqueda, PDO::PARAM_STR);
+        $stmt->bindValue(':termino', $terminoBusqueda, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $productosPorPagina, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute(); 
         $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
     } catch (PDOException $e) {
-        error_log($e->getMessage());
-        $resultados = [];
+        error_log("Error en búsqueda: " . $e->getMessage());
     }
 }
 ?>
@@ -50,87 +101,104 @@ if (!empty($terminoOriginal)) {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Resultados de la Búsqueda</title>
+    <title>Resultados de Búsqueda</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f4f4; }
-        .producto { background-color: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .producto img { width: 120px; height: auto; border-radius: 4px; margin-right: 20px; }
-        .info { flex-grow: 1; }
-        mark { background-color: #ffeb3b; color: #000; padding: 2px 4px; border-radius: 2px; }
-        .paginacion { margin: 20px 0; text-align: center; }
-        .paginacion a { display: inline-block; padding: 10px 15px; margin: 0 4px; border: 1px solid #6B8E23; text-decoration: none; border-radius: 5px; color: #6B8E23; transition: 0.3s; }
-        .paginacion a.activa { background-color: #6B8E23; color: white; }
-        .paginacion a:hover:not(.activa) { background-color: #e8f5e9; }
-        .no-resultados { background-color: #fff3cd; color: #856404; padding: 20px; border-radius: 8px; border: 1px solid #ffeeba; }
-        .paginacion a {
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
+        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        .contenedor { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* Estilo especial para las flechas si quieres que se vean distintas */
-        .paginacion a:first-child, .paginacion a:last-child {
-            background-color: #eee;
-            color: #333;
-            border-color: #bbb;
-        }
+.producto { 
+    /* Este es un tono verde-amarillo muy claro (LightGoldenRodYellow o similar) */
+    background-color: #f9fbe7; 
+    
+    border: 1px solid #dce775; /* Un borde un poco más oscuro para dar definición */
+    border-radius: 8px; 
+    padding: 15px; 
+    margin-bottom: 15px; 
+    display: flex; 
+    align-items: center; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    transition: transform 0.2s;
+}
 
-        .paginacion a:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }        
+/* Opcional: un efecto sutil cuando el mouse pasa por encima */
+.producto:hover {
+    background-color: #f0f4c3;
+    transform: scale(1.01);
+}
+        .producto img { width: 80px; height: 80px; object-fit: cover; margin-right: 15px; border-radius: 5px; }
+        .paginacion { margin-top: 20px; text-align: center; }
+        .paginacion a { padding: 8px 12px; border: 1px solid #6B8E23; text-decoration: none; color: #6B8E23; margin: 2px; border-radius: 4px; }
+        .paginacion a.activa { background: #6B8E23; color: white; }
+mark {
+    background-color: yellow !important;
+    color: black !important;
+    padding: 2px !important;
+    display: inline !important;
+}
     </style>
 </head>
 <body>
 
+<div class="contenedor">
     <h2>Resultados para: "<?php echo htmlspecialchars($terminoOriginal); ?>"</h2>
-
     <?php if (!empty($resultados)): ?>
         <?php foreach ($resultados as $p): ?>
             <div class="producto">
-                <img src="ver_imagen.php?id=<?php echo $p['id']; ?>" alt="<?php echo htmlspecialchars($p['producto_nombre']); ?>">
-                <div class="info">
-                    <form action="procesar_carrito1.php" method="post">
-                        <input type="hidden" name="id" value="<?php echo $p['id']; ?>">
-                        <h3><mark><?php echo htmlspecialchars($p['producto_nombre']); ?></mark></h3>
-                        <p><?php echo htmlspecialchars($p['producto_descripcion']); ?></p>
-                        <p><strong>Precio: $<?php echo number_format($p['precio'], 2); ?></strong></p>
-                        <button type="submit" name="agregar_carrito" style="cursor:pointer; background:#6B8E23; color:white; border:none; padding:8px 15px; border-radius:4px;">Añadir al 🛒</button>
-                    </form>
+                <img src="ver_imagen.php?id=<?php echo $p['id']; ?>" alt="Producto">
+
+                        <div class="info">
+                        <form action="procesar_carrito1.php" method="post">
+                            <!-- SE AÑADE EL TOKEN CSRF AQUÍ -->
+                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                            <input type="hidden" name="id" value="<?php echo $p['id']; ?>">
+                            
+                            <h3>
+                                <?php 
+                                    $nombreEscapado = htmlspecialchars($p['producto_nombre']);
+                                    echo resaltar($nombreEscapado, $terminoLimpio); 
+                                ?>
+                            </h3>
+                            <p>
+                                <?php 
+                                    $descEscapada = htmlspecialchars($p['producto_descripcion']);
+                                    echo resaltar($descEscapada, $terminoLimpio); 
+                                ?>
+                            </p>
+                                    
+                            <p><strong>Precio: $<?php echo number_format($p['precio'], 2); ?></strong></p>
+
+                        <!-- CAMPO DE CANTIDAD AÑADIDO -->
+                            <div style="margin-bottom: 10px;">
+                                <label for="cantidad_<?php echo $p['stock']; ?>">Cantidad:</label>
+                                <input type="number" name="cantidad" id="cantidad_<?php echo $p['stock']; ?>" value="1" min="1" style="width: 60px; text-align: center;">
+                            </div>
+                            
+                            <button type="submit" name="agregar_carrito" class="btn-carrito">Añadir al 🛒</button>
+                        </form>
+                        </div>
                 </div>
-            </div>
         <?php endforeach; ?>
 
-<?php if ($totalPaginas > 1): ?>
-    <div class="paginacion">
-        
-        <?php if ($paginaActual > 1): ?>
-            <a href="?q=<?php echo urlencode($terminoOriginal); ?>&pagina=<?php echo $paginaActual - 1; ?>">
-                &laquo; Anterior
-            </a>
+        <?php if ($totalPaginas > 1): ?>
+            <div class="paginacion">
+                <?php for ($i = 1; $i <= $totalPaginas; $i++): ?>
+                    <a href="?q=<?php echo urlencode($terminoOriginal); ?>&pagina=<?php echo $i; ?>" 
+                       class="<?php echo ($i == $paginaActual) ? 'activa' : ''; ?>">
+                        <?php echo $i; ?>
+                    </a>
+                <?php endfor; ?>
+            </div>
         <?php endif; ?>
 
-        <?php for ($i = 1; $i <= $totalPaginas; $i++): ?>
-            <a href="?q=<?php echo urlencode($terminoOriginal); ?>&pagina=<?php echo $i; ?>" 
-               class="<?php echo ($i == $paginaActual) ? 'activa' : ''; ?>">
-                <?php echo $i; ?>
-            </a>
-        <?php endfor; ?>
-
-        <?php if ($paginaActual < $totalPaginas): ?>
-            <a href="?q=<?php echo urlencode($terminoOriginal); ?>&pagina=<?php echo $paginaActual + 1; ?>">
-                Siguiente &raquo;
-            </a>
-        <?php endif; ?>
-
-    </div>
-<?php endif; ?>
     <?php elseif (!empty($terminoOriginal)): ?>
-        <div class="no-resultados">
-            No se encontraron productos para "<strong><?php echo htmlspecialchars($terminoOriginal); ?></strong>".
-        </div>
+        <p>No se encontraron coincidencias para "<?php echo htmlspecialchars($terminoOriginal); ?>".</p>
+    <?php else: ?>
+        <p>Por favor, ingresa un término de búsqueda.</p>
     <?php endif; ?>
 
-    <p><a href="limpieza.php" style="color: #6B8E23; font-weight: bold;">← Volver a la tienda</a></p>
+    <br>
+    <a href="limpieza.php" style="color: #6B8E23; font-weight: bold;">← Volver a la tienda</a>
+</div>
 
 </body>
 </html>
